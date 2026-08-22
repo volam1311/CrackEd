@@ -58,6 +58,7 @@ function mapApiVideoToVideo(api: ApiVideo): Video {
     publishedAt: api.published_at ?? api.created_at,
     source: api.source,
     category: isYoutube ? 'Education' : 'Uploaded',
+    filePath: api.file_path ?? null,
   }
 }
 

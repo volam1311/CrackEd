@@ -16,6 +16,7 @@ services:
       - "8000:8000"
     volumes:
       - ./server:/app
+      - uploads_data:/app/uploads
     environment:
       - MONGO_URL=mongodb://mongo:27017
       - MONGO_DB=cracked
@@ -31,3 +32,4 @@ services:
 
 volumes:
   mongo_data:
+  uploads_data:

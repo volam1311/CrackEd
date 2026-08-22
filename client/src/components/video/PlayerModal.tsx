@@ -51,6 +51,7 @@ export function PlayerModal({ video, onClose }: PlayerModalProps) {
   if (!video) return null
 
   const canEmbed = video.youtubeId !== null
+  const isUpload = video.source === 'upload' && video.filePath
 
   return (
     <dialog
@@ -76,7 +77,14 @@ export function PlayerModal({ video, onClose }: PlayerModalProps) {
       </button>
 
       <div className="aspect-video w-full overflow-hidden rounded-t-2xl bg-black">
-        {canEmbed ? (
+        {isUpload ? (
+          <video
+            src={`/api/uploads/${video.filePath}`}
+            controls
+            autoPlay
+            className="size-full"
+          />
+        ) : canEmbed ? (
           <iframe
             src={`https://www.youtube.com/embed/${video.youtubeId}?autoplay=1&rel=0`}
             title={video.title}
@@ -86,7 +94,7 @@ export function PlayerModal({ video, onClose }: PlayerModalProps) {
           />
         ) : (
           <div className="flex size-full items-center justify-center px-6 text-center text-sm text-muted">
-            This video was uploaded to CrackEd. Local playback is not wired up yet.
+            No playback available for this video.
           </div>
         )}
       </div>
