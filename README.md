@@ -48,3 +48,64 @@ npm run dev
 App: http://localhost:5173
 
 Vite proxies `/api/*` to the FastAPI server, so you can call `/api/health` from the browser without CORS issues in local dev.
+
+## Application flow
+
+```mermaid
+flowchart TB
+  subgraph Frontend
+    U[User]
+    Home[Home feed<br/>Today's Pick / Recommended / Continue Learning]
+    Cards[Video cards]
+    Player[YouTube iframe player]
+    FetchUI[Fetch from YouTube UI<br/>Add channels]
+    UploadUI[Upload Videos UI<br/>5-step wizard]
+  end
+
+  subgraph Backend["Backend Core — Person 1"]
+    API[FastAPI]
+    UploadEP[Upload endpoint]
+    CRUD[Video / channel CRUD]
+    FS["/uploads filesystem"]
+    DB[(Database<br/>videos · channels)]
+  end
+
+  subgraph Pipeline["YouTube + AI — Person 2"]
+    YTPipe[YouTube pipeline]
+    YTAPI[YouTube Data API]
+    LLM[LLM title rewrite]
+  end
+
+  U --> Home
+  U --> FetchUI
+  U --> UploadUI
+  U --> Player
+
+  Home --> Cards
+  Cards --> CRUD
+  Player --> Cards
+
+  FetchUI --> YTPipe
+  YTPipe --> YTAPI
+  YTPipe --> DB
+  YTPipe --> LLM
+  UploadEP --> LLM
+  LLM --> DB
+
+  UploadUI --> UploadEP
+  UploadEP --> FS
+  UploadEP --> DB
+  CRUD --> DB
+  API --- UploadEP
+  API --- CRUD
+```
+
+### Upload wizard
+
+```mermaid
+flowchart LR
+  A[1. Upload] --> B[2. Details]
+  B --> C[3. Preprocess<br/>mock OK if AI split not ready]
+  C --> D[4. Review]
+  D --> E[5. Publish]
+```
