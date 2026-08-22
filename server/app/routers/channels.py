@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException
 
@@ -26,7 +26,7 @@ async def add_channel(payload: ChannelCreate):
         "_id": payload.id,
         "title": payload.title,
         "thumbnail_url": payload.thumbnail_url,
-        "added_at": datetime.now(timezone.utc),
+        "added_at": datetime.now(UTC),
     }
     await db.channels.insert_one(doc)
     return Channel(**doc)

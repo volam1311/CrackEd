@@ -28,7 +28,7 @@ export function PlayerModal({ video, onClose }: PlayerModalProps) {
   const [view, setView] = useState<{ videoId: string; mode: 'player' | 'quiz' } | null>(null)
 
   const quiz = video ? quizFor(video.id) : null
-  const mode = video && view?.videoId === video.id ? view.mode : 'player'
+  const mode = video && view && view.videoId === video.id ? view.mode : 'player'
 
   // Keep the dialog's open state in sync with `video`.
   useEffect(() => {
@@ -114,12 +114,7 @@ export function PlayerModal({ video, onClose }: PlayerModalProps) {
         <>
           <div className="aspect-video w-full overflow-hidden rounded-t-2xl bg-black">
             {isUpload ? (
-              <video
-                src={`/api/uploads/${video.filePath}`}
-                controls
-                autoPlay
-                className="size-full"
-              />
+              <UploadedVideoPlayer src={`/api/uploads/${video.filePath}`} />
             ) : canEmbed ? (
               <iframe
                 src={`https://www.youtube.com/embed/${video.youtubeId}?autoplay=1&rel=0`}
@@ -168,5 +163,59 @@ export function PlayerModal({ video, onClose }: PlayerModalProps) {
         </>
       )}
     </dialog>
+  )
+}
+
+/** How long to wait for metadata before calling the file unplayable. */
+const STALL_TIMEOUT_MS = 12_000
+
+/**
+ * Uploaded-file playback with visible failure states.
+ *
+ * A bare <video> that cannot decode its source renders as a black rectangle and
+ * says nothing — and a file whose moov atom sits at the end, or whose container
+ * the browser cannot read, often never fires `error` at all. It just stalls at
+ * readyState 0. So we watch for both: an explicit error, and metadata simply
+ * never arriving.
+ */
+function UploadedVideoPlayer({ src }: { src: string }) {
+  const [ready, setReady] = useState(false)
+  const [failed, setFailed] = useState(false)
+
+  useEffect(() => {
+    if (ready || failed) return
+    const timer = setTimeout(() => setFailed(true), STALL_TIMEOUT_MS)
+    return () => clearTimeout(timer)
+  }, [ready, failed])
+
+  if (failed) {
+    return (
+      <div className="flex size-full flex-col items-center justify-center gap-3 px-8 text-center">
+        <p className="text-sm font-semibold text-text">This video would not play</p>
+        <p className="max-w-md text-sm leading-relaxed text-muted">
+          The browser could not read the file. That usually means the container or
+          codec is unsupported, or the file needs re-encoding for web playback.
+        </p>
+        <a
+          href={src}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-1 rounded-full border border-border px-4 py-2 text-sm text-text transition-colors hover:bg-surface"
+        >
+          Open the file directly
+        </a>
+      </div>
+    )
+  }
+
+  return (
+    <video
+      src={src}
+      controls
+      autoPlay
+      onLoadedMetadata={() => setReady(true)}
+      onError={() => setFailed(true)}
+      className="size-full"
+    />
   )
 }

@@ -28,7 +28,9 @@ export async function fetchHello(name: string): Promise<HelloResponse> {
 }
 
 type ApiVideo = {
-  id: string
+  /** FastAPI serialises the Pydantic alias, so the wire field is `_id`. */
+  _id?: string
+  id?: string
   source: 'youtube' | 'upload'
   original_title: string
   display_title: string | null
@@ -57,14 +59,16 @@ function withTimeout(): RequestInit {
 
 function mapApiVideoToVideo(api: ApiVideo): Video {
   const isYoutube = api.source === 'youtube'
+  // Accept either spelling: `_id` is what the API actually sends today.
+  const id = api._id ?? api.id ?? ''
   return {
-    id: api.id,
-    youtubeId: isYoutube ? api.id : null,
+    id,
+    youtubeId: isYoutube ? id : null,
     title: api.display_title ?? api.original_title,
     description: api.description ?? '',
     channel: api.channel_title ?? (isYoutube ? 'YouTube' : 'User Upload'),
     channelVerified: true,
-    thumbnailUrl: api.thumbnail_url ?? (isYoutube ? `https://i.ytimg.com/vi/${api.id}/maxresdefault.jpg` : ''),
+    thumbnailUrl: api.thumbnail_url ?? (isYoutube ? `https://i.ytimg.com/vi/${id}/maxresdefault.jpg` : ''),
     durationSeconds: api.duration_seconds,
     views: 0,
     publishedAt: api.published_at ?? api.created_at,
