@@ -49,6 +49,45 @@ App: http://localhost:5173
 
 Vite proxies `/api/*` to the FastAPI server, so you can call `/api/health` from the browser without CORS issues in local dev.
 
+## Run with Docker
+
+Make sure you have [Docker](https://www.docker.com/) and Docker Compose installed.
+
+```bash
+docker compose up --build
+```
+
+This starts three services:
+
+| Service  | URL                    | Description             |
+| -------- | ---------------------- | ----------------------- |
+| Client   | http://localhost:3000   | React app (nginx)       |
+| Server   | http://localhost:8000   | FastAPI                 |
+| MongoDB  | localhost:27017        | Database                |
+
+API docs: http://localhost:8000/docs
+
+To stop everything:
+
+```bash
+docker compose down
+```
+
+To stop and remove the database volume:
+
+```bash
+docker compose down -v
+```
+
+### Environment variables
+
+The server container receives these variables by default (set in `docker-compose.yml`):
+
+| Variable   | Default                     |
+| ---------- | --------------------------- |
+| `MONGO_URL`| `mongodb://mongo:27017`     |
+| `MONGO_DB` | `cracked`                   |
+
 ## Application flow
 
 ```mermaid
