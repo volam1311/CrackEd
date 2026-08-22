@@ -34,13 +34,13 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install -r requirements.txt
-          pip install ruff pytest
+          pip install ruff pytest httpx2
 
       - name: Lint with ruff
         run: ruff check .
 
       - name: Run tests
-        run: pytest --tb=short -q || true
+        run: pytest --tb=short -q
 
   build-and-push:
     needs: lint-and-test
