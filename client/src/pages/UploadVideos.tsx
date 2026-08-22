@@ -226,7 +226,11 @@ export function UploadVideos() {
                 body: formData,
               })
               if (!uploadRes.ok) {
-                setError('Failed to upload video file.')
+                setError(
+                  uploadRes.status === 413
+                    ? 'The server rejected this file as too large. If you are on the Docker client, its upload size limit needs raising.'
+                    : `Failed to upload video file (HTTP ${uploadRes.status}).`,
+                )
                 return
               }
               const { filename } = await uploadRes.json()
