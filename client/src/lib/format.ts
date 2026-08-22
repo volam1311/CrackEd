@@ -73,3 +73,55 @@ export function titleFromFilename(name: string): string {
     .replace(/\s+/g, ' ')
     .trim()
 }
+
+/*
+ * YouTube descriptions are mostly housekeeping: cross-promo links, home pages,
+ * music credits, patron thanks, chapter timestamps. Real data from the ingested
+ * library runs to a median of ~1,400 characters and a maximum of ~3,800, with
+ * the one or two useful sentences buried somewhere in the middle.
+ *
+ * This trims to the part worth reading. It is display-only - the full text stays
+ * in the database, so nothing is lost and the rule can be changed freely.
+ */
+
+const URL_PATTERN = /https?:\/\/\S+|www\.\S+/gi
+
+/** Lines that are housekeeping rather than description. */
+const BOILERPLATE_LINE =
+  /^\s*(home\s?page|website|music|soundtrack|thanks|thank you|special thanks|support|patreon|donate|merch|twitter|x|instagram|tiktok|discord|facebook|newsletter|mailing list|subscribe|follow|credits?|links?|chapters?|timestamps?|table of contents|correction|errata)\b/i
+
+/** A chapter/timestamp line such as "0:00 Introduction". */
+const TIMESTAMP_LINE = /^\s*\d{1,2}:\d{2}(:\d{2})?\b/
+
+export function summariseDescription(description: string, maxChars = 220): string {
+  if (!description) return ''
+
+  const kept = description
+    .split(/\r?\n/)
+    .map((line) => line.replace(URL_PATTERN, '').trim())
+    .filter((line) => {
+      if (!line) return false
+      if (TIMESTAMP_LINE.test(line)) return false
+      if (BOILERPLATE_LINE.test(line)) return false
+      // A line left as punctuation-only once its link was removed carried nothing.
+      if (!/[a-z]{3}/i.test(line)) return false
+      // Ends with a colon: it was introducing the link we just stripped, e.g.
+      // "Full text of the poem here:" - keeping it strands a dangling lead-in.
+      if (/[:\-–]$/.test(line)) return false
+      // Short "Label: value" leftovers are credits (translations, music, names),
+      // not description. Real sentences of this length rarely carry a colon.
+      if (line.length < 40 && line.includes(':')) return false
+      return true
+    })
+
+  const text = kept.join(' ').replace(/\s{2,}/g, ' ').trim()
+  if (text.length <= maxChars) return text
+
+  // Prefer cutting at a sentence end, then a word, rather than mid-word.
+  const window = text.slice(0, maxChars)
+  const sentenceEnd = Math.max(window.lastIndexOf('. '), window.lastIndexOf('! '), window.lastIndexOf('? '))
+  if (sentenceEnd > maxChars * 0.5) return window.slice(0, sentenceEnd + 1)
+
+  const wordEnd = window.lastIndexOf(' ')
+  return `${window.slice(0, wordEnd > 0 ? wordEnd : maxChars).trimEnd()}…`
+}

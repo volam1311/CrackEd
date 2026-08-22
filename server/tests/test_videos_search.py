@@ -49,7 +49,11 @@ class FakeCursor:
 
 
 class FakeVideos:
-    """Records the query it was asked for so tests can assert on it."""
+    """Records the filter it was asked for so tests can assert on it.
+
+    A search runs as an aggregation (so results can be ranked by which title
+    matched); everything else still goes through find().
+    """
 
     def __init__(self, docs: list[dict]):
         self.docs = docs
@@ -57,6 +61,10 @@ class FakeVideos:
 
     def find(self, query=None):
         self.last_query = query
+        return FakeCursor(self.docs)
+
+    def aggregate(self, pipeline):
+        self.last_query = next(s["$match"] for s in pipeline if "$match" in s)
         return FakeCursor(self.docs)
 
 

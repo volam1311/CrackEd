@@ -56,10 +56,40 @@ async def list_videos(
             {"channel_title": {"$regex": pattern, "$options": "i"}},
         ]
 
-        # Search results must be stable and paginable, so they bypass the random
-        # sampling and channel interleaving used for the feed.
-        cursor = db.videos.find(query).sort("created_at", -1).skip(skip).limit(limit)
-        return [Video(**doc) async for doc in cursor]
+        # Rank by which field matched: the CrackEd title first, since that is what
+        # the viewer actually sees, then the source title as a safety net for
+        # videos nobody has renamed, then the channel. Search results also bypass
+        # the random sampling and channel interleaving used for the feed.
+        def matches(field: str) -> dict:
+            return {
+                "$regexMatch": {
+                    "input": {"$ifNull": [f"${field}", ""]},
+                    "regex": pattern,
+                    "options": "i",
+                }
+            }
+
+        pipeline = [
+            {"$match": query},
+            {
+                "$addFields": {
+                    "_rank": {
+                        "$switch": {
+                            "branches": [
+                                {"case": matches("display_title"), "then": 0},
+                                {"case": matches("original_title"), "then": 1},
+                            ],
+                            "default": 2,
+                        }
+                    }
+                }
+            },
+            {"$sort": {"_rank": 1, "created_at": -1}},
+            {"$skip": skip},
+            {"$limit": limit},
+            {"$unset": "_rank"},
+        ]
+        return [Video(**doc) async for doc in db.videos.aggregate(pipeline)]
 
     if distribute:
         channel_ids = await db.videos.distinct("channel_id", query)
