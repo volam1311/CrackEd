@@ -80,7 +80,7 @@ function mapApiVideoToVideo(api: ApiVideo): Video {
 
 export async function fetchFeed(): Promise<Video[]> {
   try {
-    const res = await fetch('/api/videos?limit=50', withTimeout())
+    const res = await fetch('/api/videos?limit=50&order=random', withTimeout())
     if (res.ok) {
       const data: ApiVideo[] = await res.json()
       if (data.length > 0) {
@@ -95,7 +95,7 @@ export async function fetchFeed(): Promise<Video[]> {
 
 export async function fetchTodaysPick(): Promise<Video> {
   try {
-    const res = await fetch('/api/videos?limit=1', withTimeout())
+    const res = await fetch('/api/videos?limit=1&order=random', withTimeout())
     if (res.ok) {
       const data: ApiVideo[] = await res.json()
       if (data.length > 0) {

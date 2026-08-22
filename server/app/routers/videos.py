@@ -16,11 +16,19 @@ async def list_videos(
     ] = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     skip: Annotated[int, Query(ge=0)] = 0,
+    order: Annotated[str, Query(description="Order: recent or random")] = "random",
 ):
     db = get_db()
     query: dict = {}
     if source:
         query["source"] = source.value
+
+    if order == "random":
+        pipeline: list[dict] = []
+        if query:
+            pipeline.append({"$match": query})
+        pipeline.append({"$sample": {"size": limit}})
+        return [Video(**doc) async for doc in db.videos.aggregate(pipeline)]
 
     cursor = db.videos.find(query).sort("created_at", -1).skip(skip).limit(limit)
     return [Video(**doc) async for doc in cursor]

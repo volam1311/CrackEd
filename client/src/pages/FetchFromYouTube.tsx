@@ -15,6 +15,7 @@ export function FetchFromYouTube() {
   const [channelTitle, setChannelTitle] = useState('')
   const [loading, setLoading] = useState(false)
   const [fetchingVideos, setFetchingVideos] = useState(false)
+  const [youtubeApiKey, setYoutubeApiKey] = useState('')
   const [message, setMessage] = useState<string | null>(null)
 
   const loadChannels = async () => {
@@ -74,17 +75,30 @@ export function FetchFromYouTube() {
   }
 
   const handleFetchVideos = async () => {
+    if (!youtubeApiKey.trim()) {
+      setMessage('Please enter your YouTube API key.')
+      return
+    }
     setFetchingVideos(true)
     setMessage(null)
     try {
-      const res = await fetch(`${API_BASE}/fetch`, { method: 'POST' })
+      const res = await fetch(`${API_BASE}/fetch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ youtube_api_key: youtubeApiKey.trim() }),
+      })
+      const data = await res.json()
       if (res.ok) {
-        setMessage('Videos fetched successfully!')
+        setMessage(
+          `Fetched ${data.videos_added} new video(s), ${data.videos_skipped} already existed. ` +
+          `${data.channels_processed} channel(s) processed.` +
+          (data.channels_failed?.length ? ` Failed: ${data.channels_failed.join(', ')}` : '')
+        )
       } else {
-        setMessage('Failed to fetch videos')
+        setMessage(data.detail || 'Failed to fetch videos')
       }
     } catch {
-      setMessage('Network error — /api/fetch endpoint may not be implemented yet')
+      setMessage('Network error while fetching videos.')
     } finally {
       setFetchingVideos(false)
     }
@@ -134,19 +148,29 @@ export function FetchFromYouTube() {
         </form>
       </section>
 
-      {/* Fetch Videos Button */}
+      {/* Fetch Videos */}
       <section className="bg-gray-900 rounded-xl p-5 border border-gray-800">
         <h2 className="text-lg font-semibold text-white mb-2">Fetch Videos</h2>
         <p className="text-sm text-gray-400 mb-4">
-          Pull the latest videos from all whitelisted channels.
+          Pull the latest videos from all whitelisted channels. Your API key is only
+          used for this request and is never stored on the server.
         </p>
-        <button
-          onClick={handleFetchVideos}
-          disabled={fetchingVideos || channels.length === 0}
-          className="rounded-lg bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed px-5 py-2.5 text-sm font-medium text-white transition-colors"
-        >
-          {fetchingVideos ? 'Fetching...' : 'Refetch Videos'}
-        </button>
+        <div className="flex flex-col gap-3">
+          <input
+            type="password"
+            placeholder="YouTube Data API key"
+            value={youtubeApiKey}
+            onChange={(e) => setYoutubeApiKey(e.target.value)}
+            className="w-full rounded-lg bg-gray-800 border border-gray-700 px-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-red-500"
+          />
+          <button
+            onClick={handleFetchVideos}
+            disabled={fetchingVideos || channels.length === 0 || !youtubeApiKey.trim()}
+            className="self-start rounded-lg bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed px-5 py-2.5 text-sm font-medium text-white transition-colors"
+          >
+            {fetchingVideos ? 'Fetching...' : 'Refetch Videos'}
+          </button>
+        </div>
       </section>
 
       {/* Whitelisted Channels List */}
