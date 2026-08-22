@@ -7,7 +7,7 @@ type PublishStepProps = {
   details: VideoDetails
   clips: Clip[]
   published: boolean
-  onPublish: () => void
+  onPublish: () => void | Promise<void>
 }
 
 export function PublishStep({

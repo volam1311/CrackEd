@@ -222,7 +222,32 @@ export function UploadVideos() {
           details={details}
           clips={clips}
           published={published}
-          onPublish={() => setPublished(true)}
+          onPublish={async () => {
+            try {
+              const res = await fetch('/api/videos', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  id: video.id,
+                  source: 'upload',
+                  original_title: details.title,
+                  display_title: details.title,
+                  description: details.description || null,
+                  duration_seconds: Math.round(video.duration),
+                  published_at: new Date().toISOString(),
+                  file_path: video.name,
+                }),
+              })
+              if (!res.ok && res.status !== 409) {
+                setError('Failed to publish video to server.')
+                return
+              }
+            } catch {
+              setError('Network error while publishing.')
+              return
+            }
+            setPublished(true)
+          }}
         />
       ) : null}
 
