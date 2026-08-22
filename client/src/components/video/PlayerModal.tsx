@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Video } from '../../types'
-import { formatAge, formatViews } from '../../lib/format'
+import { formatAge, formatViews, summariseDescription } from '../../lib/format'
 import { pointsFor, recordWatch } from '../../lib/progress'
 import { quizFor } from '../../features/quiz/questions'
 import { QuizPanel } from '../../features/quiz/QuizPanel'
@@ -143,7 +143,11 @@ export function PlayerModal({ video, onClose }: PlayerModalProps) {
               <span>•</span>
               <span>{formatAge(video.publishedAt)}</span>
             </p>
-            <p className="mt-3 text-sm leading-relaxed text-muted">{video.description}</p>
+            {summariseDescription(video.description, 320) ? (
+              <p className="mt-3 text-sm leading-relaxed text-muted">
+                {summariseDescription(video.description, 320)}
+              </p>
+            ) : null}
 
             {quiz ? (
               <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-border pt-5">
