@@ -81,7 +81,7 @@ function mapApiVideoToVideo(api: ApiVideo): Video {
 
 export async function fetchFeed(): Promise<Video[]> {
   try {
-    const res = await fetch('/api/videos?limit=50&order=random', withTimeout())
+    const res = await fetch('/api/videos?limit=50&distribute=true', withTimeout())
     if (res.ok) {
       const data: ApiVideo[] = await res.json()
       if (data.length > 0) {
