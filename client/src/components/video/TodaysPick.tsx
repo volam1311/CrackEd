@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { Video } from '../../types'
-import { formatAge, formatDuration, formatViews } from '../../lib/format'
+import { formatAge, formatDuration, formatViews, summariseDescription } from '../../lib/format'
 import { Icon } from '../ui/Icon'
 
 type TodaysPickProps = {
@@ -11,6 +11,7 @@ type TodaysPickProps = {
 export function TodaysPick({ video, onPlay }: TodaysPickProps) {
   const [failed, setFailed] = useState(false)
   const showPlaceholder = failed || !video.thumbnailUrl
+  const summary = summariseDescription(video.description)
 
   return (
     <section className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
@@ -54,9 +55,9 @@ export function TodaysPick({ video, onPlay }: TodaysPickProps) {
           {formatViews(video.views)} • {formatAge(video.publishedAt)}
         </p>
 
-        <p className="mt-4 line-clamp-3 text-sm leading-relaxed text-muted">
-          {video.description}
-        </p>
+        {summary ? (
+          <p className="mt-4 line-clamp-3 text-sm leading-relaxed text-muted">{summary}</p>
+        ) : null}
 
         <button
           type="button"

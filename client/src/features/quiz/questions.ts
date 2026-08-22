@@ -1,7 +1,11 @@
 import type { QuizQuestion } from './types'
 
 /**
- * Hand-written comprehension questions, keyed by the video id in `mocks/videos.ts`.
+ * Hand-written comprehension questions, keyed by **YouTube video id**.
+ *
+ * Keying on the YouTube id rather than an internal id is what lets the same
+ * question set work against both the seeded mocks and real ingested videos --
+ * the backend uses the YouTube id as the document id, so the two line up.
  *
  * These are written against the *actual content* of the real YouTube videos, not
  * against CrackEd's rewritten titles. That distinction matters: generating
@@ -12,7 +16,7 @@ import type { QuizQuestion } from './types'
  */
 export const quizzes: Record<string, QuizQuestion[]> = {
   // 3Blue1Brown — But what is a neural network?
-  v1: [
+  aircAruvnKk: [
     {
       prompt: 'What does each neuron in the first layer of the network hold?',
       options: [
@@ -52,7 +56,7 @@ export const quizzes: Record<string, QuizQuestion[]> = {
   ],
 
   // 3Blue1Brown — Vectors, Chapter 1 of Essence of Linear Algebra
-  v2: [
+  fNk_zzaMoSs: [
     {
       prompt: 'In the linear algebra convention, where does a vector’s tail sit?',
       options: [
@@ -92,7 +96,7 @@ export const quizzes: Record<string, QuizQuestion[]> = {
   ],
 
   // 3Blue1Brown — The essence of calculus
-  v5: [
+  WUvTyaaNkzM: [
     {
       prompt: 'How does the video build up the area of a circle?',
       options: [
@@ -132,7 +136,7 @@ export const quizzes: Record<string, QuizQuestion[]> = {
   ],
 
   // freeCodeCamp — SQL / databases
-  v6: [
+  HXV3zeQKqGY: [
     {
       prompt: 'Which SQL clause filters which rows are returned?',
       options: ['WHERE', 'ORDER BY', 'GROUP BY', 'SELECT'],
@@ -167,7 +171,7 @@ export const quizzes: Record<string, QuizQuestion[]> = {
   ],
 
   // Veritasium — The Big Misconception About Electricity
-  v11: [
+  bHIhgxav9LY: [
     {
       prompt: 'Where does the electrical energy actually travel?',
       options: [
@@ -208,7 +212,7 @@ export const quizzes: Record<string, QuizQuestion[]> = {
   ],
 
   // Ali Abdaal — Evidence-based revision tips
-  v12: [
+  ukLnPbIffxE: [
     {
       prompt: 'Which technique does the evidence most strongly support?',
       options: [

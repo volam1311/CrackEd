@@ -65,6 +65,7 @@ function mapApiVideoToVideo(api: ApiVideo): Video {
     id,
     youtubeId: isYoutube ? id : null,
     title: api.display_title ?? api.original_title,
+    originalTitle: api.original_title,
     description: api.description ?? '',
     channel: api.channel_title ?? (isYoutube ? 'YouTube' : 'User Upload'),
     channelVerified: true,
@@ -110,4 +111,29 @@ export async function fetchTodaysPick(): Promise<Video> {
 
 export async function fetchContinueLearning(): Promise<VideoWithProgress[]> {
   return mockContinueLearning
+}
+
+export async function searchVideos(term: string): Promise<Video[]> {
+  const query = term.trim()
+  if (!query) return []
+
+  try {
+    const res = await fetch(
+      `/api/videos?q=${encodeURIComponent(query)}&limit=50`,
+      withTimeout(),
+    )
+    if (res.ok) {
+      const data: ApiVideo[] = await res.json()
+      return data.map(mapApiVideoToVideo)
+    }
+  } catch {
+    // Fall through to the local mock search below.
+  }
+
+  const needle = query.toLowerCase()
+  return mockVideos.filter(
+    (video) =>
+      video.title.toLowerCase().includes(needle) ||
+      video.channel.toLowerCase().includes(needle),
+  )
 }

@@ -1,4 +1,5 @@
 import mimetypes
+import subprocess
 import uuid
 from pathlib import Path
 
@@ -22,6 +23,45 @@ MEDIA_TYPES = {
 }
 
 
+# Only ISO-BMFF containers have a moov atom to relocate; +faststart is
+# meaningless (and rejected) for Matroska/WebM.
+FASTSTART_SUFFIXES = {".mp4", ".m4v", ".mov"}
+
+
+def _remux_faststart(path: Path) -> bool:
+    """Rewrite the file with its moov atom at the front. Returns True if it changed.
+
+    A recording whose moov atom trails the media data cannot be progressively
+    played: the browser has no index until the whole file arrives, so <video>
+    sits at readyState 0 showing a black frame and never even fires an error.
+    This is a stream copy, so it costs no quality and no re-encode.
+    """
+    if path.suffix.lower() not in FASTSTART_SUFFIXES:
+        return False
+
+    remuxed = path.with_name(f"{path.stem}.faststart{path.suffix}")
+    try:
+        subprocess.run(
+            [
+                "ffmpeg", "-y",
+                "-i", str(path),
+                "-c", "copy",
+                "-movflags", "+faststart",
+                str(remuxed),
+            ],
+            check=True,
+            capture_output=True,
+        )
+    except (subprocess.CalledProcessError, FileNotFoundError, OSError):
+        # Keep whatever was uploaded: a file that might not stream still beats
+        # losing the upload outright.
+        remuxed.unlink(missing_ok=True)
+        return False
+
+    remuxed.replace(path)
+    return True
+
+
 @router.post("/api/upload")
 async def upload_file(file: UploadFile):
     if not file.filename:
@@ -38,6 +78,9 @@ async def upload_file(file: UploadFile):
     async with await anyio.open_file(dest, "wb") as f:
         while chunk := await file.read(1024 * 1024):
             await f.write(chunk)
+
+    # Run off the event loop: ffmpeg is a blocking subprocess.
+    await anyio.to_thread.run_sync(_remux_faststart, dest)
 
     return {"filename": saved_name, "url": f"/api/uploads/{saved_name}"}
 

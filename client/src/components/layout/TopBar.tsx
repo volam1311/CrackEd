@@ -1,4 +1,5 @@
-import { Link } from 'react-router-dom'
+import { useState } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Icon } from '../ui/Icon'
 
 type TopBarProps = {
@@ -51,11 +52,18 @@ export function TopBar({ onToggleNav }: TopBarProps) {
 }
 
 function SearchInput() {
+  const navigate = useNavigate()
+  const [params] = useSearchParams()
+  const [term, setTerm] = useState(params.get('q') ?? '')
+
   return (
     <form
       className="relative"
+      role="search"
       onSubmit={(event) => {
         event.preventDefault()
+        const query = term.trim()
+        if (query) navigate(`/search?q=${encodeURIComponent(query)}`)
       }}
     >
       <Icon
@@ -64,6 +72,8 @@ function SearchInput() {
       />
       <input
         type="search"
+        value={term}
+        onChange={(event) => setTerm(event.target.value)}
         placeholder="Search videos, topics, or channels..."
         aria-label="Search videos, topics, or channels"
         className="w-full rounded-full border border-border bg-surface py-2.5 pr-4 pl-11 text-sm text-text placeholder:text-muted focus:border-accent focus:outline-none"

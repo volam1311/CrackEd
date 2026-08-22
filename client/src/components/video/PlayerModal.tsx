@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Video } from '../../types'
-import { formatAge, formatViews } from '../../lib/format'
+import { formatAge, formatViews, summariseDescription } from '../../lib/format'
 import { pointsFor, recordWatch } from '../../lib/progress'
 import { quizFor } from '../../features/quiz/questions'
 import { QuizPanel } from '../../features/quiz/QuizPanel'
@@ -27,7 +27,7 @@ export function PlayerModal({ video, onClose }: PlayerModalProps) {
   // player during render, rather than needing an effect to undo stale state.
   const [view, setView] = useState<{ videoId: string; mode: 'player' | 'quiz' } | null>(null)
 
-  const quiz = video ? quizFor(video.id) : null
+  const quiz = video ? quizFor(video.youtubeId ?? video.id) : null
   const mode = video && view && view.videoId === video.id ? view.mode : 'player'
 
   // Keep the dialog's open state in sync with `video`.
@@ -108,7 +108,8 @@ export function PlayerModal({ video, onClose }: PlayerModalProps) {
           videoId={video.id}
           videoTitle={video.title}
           questions={quiz}
-          onDone={onClose}
+          onBackToVideo={() => setView(null)}
+          onClose={onClose}
         />
       ) : (
         <>
@@ -142,7 +143,11 @@ export function PlayerModal({ video, onClose }: PlayerModalProps) {
               <span>•</span>
               <span>{formatAge(video.publishedAt)}</span>
             </p>
-            <p className="mt-3 text-sm leading-relaxed text-muted">{video.description}</p>
+            {summariseDescription(video.description, 320) ? (
+              <p className="mt-3 text-sm leading-relaxed text-muted">
+                {summariseDescription(video.description, 320)}
+              </p>
+            ) : null}
 
             {quiz ? (
               <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-border pt-5">

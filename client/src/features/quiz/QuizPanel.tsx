@@ -7,7 +7,10 @@ type QuizPanelProps = {
   videoId: string
   videoTitle: string
   questions: QuizQuestion[]
-  onDone: () => void
+  /** Return to the player without leaving the video. */
+  onBackToVideo: () => void
+  /** Dismiss the whole modal. */
+  onClose: () => void
 }
 
 /**
@@ -18,7 +21,13 @@ type QuizPanelProps = {
  * Scoring deliberately ignores speed: rewarding fast answers would encourage
  * skimming, which is the behaviour CrackEd exists to push against.
  */
-export function QuizPanel({ videoId, videoTitle, questions, onDone }: QuizPanelProps) {
+export function QuizPanel({
+  videoId,
+  videoTitle,
+  questions,
+  onBackToVideo,
+  onClose,
+}: QuizPanelProps) {
   const [index, setIndex] = useState(0)
   const [picked, setPicked] = useState<number | null>(null)
   const [correctCount, setCorrectCount] = useState(0)
@@ -54,7 +63,8 @@ export function QuizPanel({ videoId, videoTitle, questions, onDone }: QuizPanelP
         correct={correctCount}
         total={questions.length}
         earned={earned}
-        onDone={onDone}
+        onBackToVideo={onBackToVideo}
+        onClose={onClose}
       />
     )
   }
@@ -117,10 +127,10 @@ export function QuizPanel({ videoId, videoTitle, questions, onDone }: QuizPanelP
       <div className="mt-6 flex items-center justify-between gap-3">
         <button
           type="button"
-          onClick={onDone}
+          onClick={onBackToVideo}
           className="rounded-full px-4 py-2 text-sm text-muted transition-colors hover:bg-surface hover:text-text"
         >
-          Skip
+          Back to video
         </button>
         <button
           type="button"
@@ -159,12 +169,14 @@ function Results({
   correct,
   total,
   earned,
-  onDone,
+  onBackToVideo,
+  onClose,
 }: {
   correct: number
   total: number
   earned: number
-  onDone: () => void
+  onBackToVideo: () => void
+  onClose: () => void
 }) {
   const perfect = correct === total
 
@@ -190,13 +202,22 @@ function Results({
         )}
       </p>
 
-      <button
-        type="button"
-        onClick={onDone}
-        className="mt-7 rounded-full bg-accent px-7 py-3 text-sm font-semibold text-white transition-colors hover:bg-accent-hover"
-      >
-        Back to feed
-      </button>
+      <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
+        <button
+          type="button"
+          onClick={onBackToVideo}
+          className="rounded-full border border-border px-6 py-3 text-sm font-semibold text-text transition-colors hover:bg-surface"
+        >
+          Back to video
+        </button>
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-full bg-accent px-7 py-3 text-sm font-semibold text-white transition-colors hover:bg-accent-hover"
+        >
+          Back to feed
+        </button>
+      </div>
     </div>
   )
 }

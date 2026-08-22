@@ -8,9 +8,17 @@ type VideoCardProps = {
   onPlay: (video: Video) => void
   /** 0–100. Renders the Continue-learning progress bar when present. */
   watchedPct?: number
+  /** Show the source's own title too. Used on search results, where a match
+   *  can otherwise look arbitrary because the card shows the AI-rewritten title. */
+  showOriginalTitle?: boolean
 }
 
-export function VideoCard({ video, onPlay, watchedPct }: VideoCardProps) {
+export function VideoCard({
+  video,
+  onPlay,
+  watchedPct,
+  showOriginalTitle = false,
+}: VideoCardProps) {
   return (
     <button
       type="button"
@@ -22,6 +30,12 @@ export function VideoCard({ video, onPlay, watchedPct }: VideoCardProps) {
       <h3 className="mt-3 line-clamp-2 text-sm leading-snug font-semibold text-text">
         {video.title}
       </h3>
+
+      {showOriginalTitle && video.originalTitle && video.originalTitle !== video.title ? (
+        <p className="mt-1 line-clamp-1 text-xs text-muted italic">
+          {video.originalTitle}
+        </p>
+      ) : null}
 
       <p className="mt-1 flex items-center gap-1 text-xs text-muted">
         <span className="truncate">{video.channel}</span>

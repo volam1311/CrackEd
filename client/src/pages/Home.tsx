@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
 import { fetchContinueLearning, fetchFeed, fetchTodaysPick } from '../api'
-import { categories } from '../mocks/videos'
 import type { Video, VideoWithProgress } from '../types'
 import { watchedPct } from '../lib/progress'
 import { useProfile } from '../lib/useProfile'
@@ -44,13 +43,27 @@ export function Home() {
     }
   }, [])
 
+  /*
+   * Chips are derived from whatever is actually in the feed rather than a fixed
+   * list. A hardcoded list silently hides videos: everything ingested from the
+   * API lands in one category, and any category not on the list is unreachable
+   * through the filter.
+   */
+  const categoryOptions = useMemo(() => {
+    const present = [...new Set(feed.map((video) => video.category).filter(Boolean))]
+    return ['All', ...present.sort()]
+  }, [feed])
+
+  // Guard against a stale selection when the feed changes underneath it.
+  const activeCategory = categoryOptions.includes(category) ? category : 'All'
+
   // The featured video has its own slot above, so keep it out of the grid.
   const recommended = useMemo(() => {
     const withoutPick = feed.filter((video) => video.id !== todaysPick?.id)
-    return category === 'All'
+    return activeCategory === 'All'
       ? withoutPick
-      : withoutPick.filter((video) => video.category === category)
-  }, [feed, category, todaysPick])
+      : withoutPick.filter((video) => video.category === activeCategory)
+  }, [feed, activeCategory, todaysPick])
 
   /*
    * Continue learning is driven by real watch time once there is any, and falls
@@ -87,7 +100,11 @@ export function Home() {
 
   return (
     <>
-      <CategoryChips categories={categories} active={category} onChange={setCategory} />
+      <CategoryChips
+        categories={categoryOptions}
+        active={activeCategory}
+        onChange={setCategory}
+      />
 
       <div className="mt-6">
         {todaysPick ? <TodaysPick video={todaysPick} onPlay={setPlaying} /> : null}
