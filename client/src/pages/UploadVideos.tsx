@@ -25,7 +25,6 @@ const emptyDetails: VideoDetails = {
   description: '',
   topic: '',
   tagText: '',
-  apiKey: '',
   removeFiller: false,
 }
 
@@ -154,10 +153,6 @@ export function UploadVideos() {
       setError('Add a title and topic before preprocessing.')
       return
     }
-    if (!details.apiKey.trim()) {
-      setError('Add an API key so AI can split the lecture and title each clip.')
-      return
-    }
     setError(null)
     setClips([])
     setPublished(false)
@@ -184,8 +179,7 @@ export function UploadVideos() {
 
   const canContinue =
     (step === 'upload' && video?.status === 'ready') ||
-    (step === 'details' &&
-      Boolean(details.title.trim() && details.topic && details.apiKey.trim())) ||
+    (step === 'details' && Boolean(details.title.trim() && details.topic)) ||
     (step === 'preprocess' && job.complete) ||
     (step === 'review' && clips.some((clip) => clip.included))
 
@@ -224,6 +218,20 @@ export function UploadVideos() {
           published={published}
           onPublish={async () => {
             try {
+              // 1. Upload the actual video file
+              const formData = new FormData()
+              formData.append('file', video.file)
+              const uploadRes = await fetch('/api/upload', {
+                method: 'POST',
+                body: formData,
+              })
+              if (!uploadRes.ok) {
+                setError('Failed to upload video file.')
+                return
+              }
+              const { filename } = await uploadRes.json()
+
+              // 2. Create the video metadata record
               const res = await fetch('/api/videos', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -235,7 +243,7 @@ export function UploadVideos() {
                   description: details.description || null,
                   duration_seconds: Math.round(video.duration),
                   published_at: new Date().toISOString(),
-                  file_path: video.name,
+                  file_path: filename,
                 }),
               })
               if (!res.ok && res.status !== 409) {

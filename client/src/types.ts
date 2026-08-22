@@ -23,6 +23,8 @@ export type Video = {
   publishedAt: string
   source: VideoSource
   category: string
+  /** Server filename for uploaded videos, used for playback via /api/uploads/{filePath}. */
+  filePath: string | null
 }
 
 export type WatchProgress = {

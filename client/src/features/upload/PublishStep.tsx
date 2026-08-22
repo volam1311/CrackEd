@@ -49,11 +49,6 @@ export function PublishStep({
         {details.description ? (
           <p className="mt-2 text-sm text-muted">{details.description}</p>
         ) : null}
-        {details.apiKey.trim() ? (
-          <p className="mt-3 text-xs text-muted">
-            Clip titles generated with your API key
-          </p>
-        ) : null}
         {tags.length > 0 ? (
           <div className="mt-3 flex flex-wrap gap-1.5">
             {tags.map((tag) => (

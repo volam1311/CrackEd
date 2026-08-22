@@ -5,13 +5,15 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.db import close_mongo_client, get_mongo_client
-from app.routers import channels, fetch, title, videos
+from app.routers import channels, fetch, preprocess, title, upload, videos
 
 load_dotenv()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    from pathlib import Path
+    Path("/app/uploads").mkdir(parents=True, exist_ok=True)
     get_mongo_client()
     yield
     await close_mongo_client()
@@ -33,7 +35,9 @@ app.add_middleware(
 
 app.include_router(channels.router)
 app.include_router(fetch.router)
+app.include_router(preprocess.router)
 app.include_router(title.router)
+app.include_router(upload.router)
 app.include_router(videos.router)
 
 

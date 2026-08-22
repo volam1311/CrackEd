@@ -26,7 +26,6 @@ export type VideoDetails = {
   description: string
   topic: string
   tagText: string
-  apiKey: string
   removeFiller: boolean
 }
 
