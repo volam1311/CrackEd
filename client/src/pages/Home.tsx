@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { fetchContinueLearning, fetchFeed, fetchTodaysPick } from '../api'
 import { categories } from '../mocks/videos'
 import type { Video, VideoWithProgress } from '../types'
+import { watchedPct } from '../lib/progress'
+import { useProfile } from '../lib/useProfile'
 import { CategoryChips } from '../components/ui/CategoryChips'
 import { PlayerModal } from '../components/video/PlayerModal'
 import { TodaysPick } from '../components/video/TodaysPick'
@@ -10,11 +12,13 @@ import { VideoRow } from '../components/video/VideoRow'
 export function Home() {
   const [feed, setFeed] = useState<Video[]>([])
   const [todaysPick, setTodaysPick] = useState<Video | null>(null)
-  const [continueLearning, setContinueLearning] = useState<VideoWithProgress[]>([])
+  const [seededProgress, setSeededProgress] = useState<VideoWithProgress[]>([])
   const [category, setCategory] = useState<string>('All')
   const [playing, setPlaying] = useState<Video | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  const profile = useProfile()
 
   useEffect(() => {
     let cancelled = false
@@ -24,7 +28,7 @@ export function Home() {
         if (cancelled) return
         setTodaysPick(pick)
         setFeed(videos)
-        setContinueLearning(inProgress)
+        setSeededProgress(inProgress)
       })
       .catch((err: unknown) => {
         if (!cancelled) {
@@ -47,6 +51,23 @@ export function Home() {
       ? withoutPick
       : withoutPick.filter((video) => video.category === category)
   }, [feed, category, todaysPick])
+
+  /*
+   * Continue learning is driven by real watch time once there is any, and falls
+   * back to the seeded list on a fresh browser so the row is never empty in a
+   * demo. Real entries always win — the seeded percentages are invented.
+   */
+  const continueLearning = useMemo<VideoWithProgress[]>(() => {
+    const real = feed
+      .map((video) => ({
+        ...video,
+        watchedPct: watchedPct(profile, video.id, video.durationSeconds),
+      }))
+      .filter((video) => video.watchedPct > 0)
+      .sort((a, b) => b.watchedPct - a.watchedPct)
+
+    return real.length > 0 ? real : seededProgress
+  }, [feed, profile, seededProgress])
 
   const progressById = useMemo(
     () =>

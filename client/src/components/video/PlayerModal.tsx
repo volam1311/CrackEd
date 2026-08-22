@@ -1,6 +1,9 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Video } from '../../types'
 import { formatAge, formatViews } from '../../lib/format'
+import { pointsFor, recordWatch } from '../../lib/progress'
+import { quizFor } from '../../features/quiz/questions'
+import { QuizPanel } from '../../features/quiz/QuizPanel'
 import { Icon } from '../ui/Icon'
 
 type PlayerModalProps = {
@@ -20,6 +23,12 @@ type PlayerModalProps = {
  */
 export function PlayerModal({ video, onClose }: PlayerModalProps) {
   const dialogRef = useRef<HTMLDialogElement>(null)
+  // Tracked against a video id so opening a different video resets to the
+  // player during render, rather than needing an effect to undo stale state.
+  const [view, setView] = useState<{ videoId: string; mode: 'player' | 'quiz' } | null>(null)
+
+  const quiz = video ? quizFor(video.id) : null
+  const mode = video && view?.videoId === video.id ? view.mode : 'player'
 
   // Keep the dialog's open state in sync with `video`.
   useEffect(() => {
@@ -32,6 +41,24 @@ export function PlayerModal({ video, onClose }: PlayerModalProps) {
       dialog.close()
     }
   }, [video])
+
+  /*
+   * Real watch time, measured as time spent with the player open.
+   *
+   * Without the YouTube IFrame Player API we cannot read true playback position,
+   * so this is an approximation — but it is measured rather than invented, which
+   * is what the Continue-learning row and the daily goal need.
+   */
+  useEffect(() => {
+    if (!video || mode !== 'player') return
+
+    const startedAt = Date.now()
+    const { id } = video
+    return () => {
+      const seconds = Math.round((Date.now() - startedAt) / 1000)
+      if (seconds >= 1) recordWatch(id, seconds)
+    }
+  }, [video, mode])
 
   // Esc: intercept before the browser closes the dialog behind React's back.
   useEffect(() => {
@@ -75,36 +102,63 @@ export function PlayerModal({ video, onClose }: PlayerModalProps) {
         Close
       </button>
 
-      <div className="aspect-video w-full overflow-hidden rounded-t-2xl bg-black">
-        {canEmbed ? (
-          <iframe
-            src={`https://www.youtube.com/embed/${video.youtubeId}?autoplay=1&rel=0`}
-            title={video.title}
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-            className="size-full border-0"
-          />
-        ) : (
-          <div className="flex size-full items-center justify-center px-6 text-center text-sm text-muted">
-            This video was uploaded to CrackEd. Local playback is not wired up yet.
+      {mode === 'quiz' && quiz ? (
+        <QuizPanel
+          videoId={video.id}
+          videoTitle={video.title}
+          questions={quiz}
+          onDone={onClose}
+        />
+      ) : (
+        <>
+          <div className="aspect-video w-full overflow-hidden rounded-t-2xl bg-black">
+            {canEmbed ? (
+              <iframe
+                src={`https://www.youtube.com/embed/${video.youtubeId}?autoplay=1&rel=0`}
+                title={video.title}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                className="size-full border-0"
+              />
+            ) : (
+              <div className="flex size-full items-center justify-center px-6 text-center text-sm text-muted">
+                This video was uploaded to CrackEd. Local playback is not wired up yet.
+              </div>
+            )}
           </div>
-        )}
-      </div>
 
-      <div className="p-5">
-        <h2 className="text-lg font-bold text-text">{video.title}</h2>
-        <p className="mt-2 flex flex-wrap items-center gap-1.5 text-sm text-muted">
-          <span>{video.channel}</span>
-          {video.channelVerified ? (
-            <Icon name="verified" className="size-4 shrink-0" filled />
-          ) : null}
-          <span>•</span>
-          <span>{formatViews(video.views)}</span>
-          <span>•</span>
-          <span>{formatAge(video.publishedAt)}</span>
-        </p>
-        <p className="mt-3 text-sm leading-relaxed text-muted">{video.description}</p>
-      </div>
+          <div className="p-5">
+            <h2 className="text-lg font-bold text-text">{video.title}</h2>
+            <p className="mt-2 flex flex-wrap items-center gap-1.5 text-sm text-muted">
+              <span>{video.channel}</span>
+              {video.channelVerified ? (
+                <Icon name="verified" className="size-4 shrink-0" filled />
+              ) : null}
+              <span>•</span>
+              <span>{formatViews(video.views)}</span>
+              <span>•</span>
+              <span>{formatAge(video.publishedAt)}</span>
+            </p>
+            <p className="mt-3 text-sm leading-relaxed text-muted">{video.description}</p>
+
+            {quiz ? (
+              <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-border pt-5">
+                <button
+                  type="button"
+                  onClick={() => setView({ videoId: video.id, mode: 'quiz' })}
+                  className="flex items-center gap-2 rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-hover"
+                >
+                  <Icon name="flame" className="size-4" filled />
+                  Test your understanding
+                </button>
+                <span className="text-xs text-muted">
+                  {quiz.length} questions • up to {pointsFor(quiz.length, quiz.length)} points
+                </span>
+              </div>
+            ) : null}
+          </div>
+        </>
+      )}
     </dialog>
   )
 }
