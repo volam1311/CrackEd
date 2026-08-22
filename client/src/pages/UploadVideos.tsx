@@ -218,6 +218,20 @@ export function UploadVideos() {
           published={published}
           onPublish={async () => {
             try {
+              // 1. Upload the actual video file
+              const formData = new FormData()
+              formData.append('file', video.file)
+              const uploadRes = await fetch('/api/upload', {
+                method: 'POST',
+                body: formData,
+              })
+              if (!uploadRes.ok) {
+                setError('Failed to upload video file.')
+                return
+              }
+              const { filename } = await uploadRes.json()
+
+              // 2. Create the video metadata record
               const res = await fetch('/api/videos', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -229,7 +243,7 @@ export function UploadVideos() {
                   description: details.description || null,
                   duration_seconds: Math.round(video.duration),
                   published_at: new Date().toISOString(),
-                  file_path: video.name,
+                  file_path: filename,
                 }),
               })
               if (!res.ok && res.status !== 409) {
