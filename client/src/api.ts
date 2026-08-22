@@ -43,6 +43,18 @@ type ApiVideo = {
   created_at: string
 }
 
+/*
+ * Feed requests fall back to mocks when the API is unavailable, but a *hanging*
+ * backend never rejects — so without a deadline the fallback never runs and the
+ * feed spins forever. An unhealthy server is worse than an absent one, hence the
+ * explicit timeout.
+ */
+const API_TIMEOUT_MS = 3000
+
+function withTimeout(): RequestInit {
+  return { signal: AbortSignal.timeout(API_TIMEOUT_MS) }
+}
+
 function mapApiVideoToVideo(api: ApiVideo): Video {
   const isYoutube = api.source === 'youtube'
   return {
@@ -64,7 +76,7 @@ function mapApiVideoToVideo(api: ApiVideo): Video {
 
 export async function fetchFeed(): Promise<Video[]> {
   try {
-    const res = await fetch('/api/videos?limit=50')
+    const res = await fetch('/api/videos?limit=50', withTimeout())
     if (res.ok) {
       const data: ApiVideo[] = await res.json()
       if (data.length > 0) {
@@ -79,7 +91,7 @@ export async function fetchFeed(): Promise<Video[]> {
 
 export async function fetchTodaysPick(): Promise<Video> {
   try {
-    const res = await fetch('/api/videos?limit=1')
+    const res = await fetch('/api/videos?limit=1', withTimeout())
     if (res.ok) {
       const data: ApiVideo[] = await res.json()
       if (data.length > 0) {
