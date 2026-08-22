@@ -7,9 +7,16 @@ type VideoRowProps = {
   onPlay: (video: Video) => void
   /** Maps video id → percent watched, for Continue-learning rows. */
   progressById?: Record<string, number>
+  showOriginalTitle?: boolean
 }
 
-export function VideoRow({ title, videos, onPlay, progressById }: VideoRowProps) {
+export function VideoRow({
+  title,
+  videos,
+  onPlay,
+  progressById,
+  showOriginalTitle,
+}: VideoRowProps) {
   if (videos.length === 0) return null
 
   return (
@@ -31,6 +38,7 @@ export function VideoRow({ title, videos, onPlay, progressById }: VideoRowProps)
             video={video}
             onPlay={onPlay}
             watchedPct={progressById?.[video.id]}
+            showOriginalTitle={showOriginalTitle}
           />
         ))}
       </div>
