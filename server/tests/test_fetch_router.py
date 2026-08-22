@@ -56,28 +56,27 @@ class FakeDB:
         self.videos = FakeCollection(videos)
 
 
-def test_fetch_missing_api_key_returns_500(monkeypatch):
-    monkeypatch.delenv("YOUTUBE_API_KEY", raising=False)
-    response = client.post("/api/fetch")
-    assert response.status_code == 500
+def post_fetch(api_key: str = "test-key"):
+    """/api/fetch is BYOK - the key travels in the request body, not the environment."""
+    return client.post("/api/fetch", json={"youtube_api_key": api_key})
 
 
-def test_fetch_empty_whitelist_returns_zero_counts(monkeypatch):
-    monkeypatch.setenv("YOUTUBE_API_KEY", "test-key")
+def test_fetch_without_api_key_is_rejected():
+    """The key is a required body field, so omitting it fails validation."""
+    response = client.post("/api/fetch", json={})
+    assert response.status_code == 422
+
+
+def test_fetch_with_empty_whitelist_returns_400():
+    """Fetching with nothing whitelisted is a caller error, not a silent no-op."""
     fake_db = FakeDB()
     with patch("app.routers.fetch.get_db", return_value=fake_db):
-        response = client.post("/api/fetch")
-    assert response.status_code == 200
-    assert response.json() == {
-        "channels_processed": 0,
-        "channels_failed": [],
-        "videos_added": 0,
-        "videos_skipped": 0,
-    }
+        response = post_fetch()
+    assert response.status_code == 400
+    assert "channels" in response.json()["detail"].lower()
 
 
-def test_fetch_skips_already_stored_videos(monkeypatch):
-    monkeypatch.setenv("YOUTUBE_API_KEY", "test-key")
+def test_fetch_skips_already_stored_videos():
     fake_db = FakeDB(
         channels={"UCabc": {"_id": "UCabc"}},
         videos={"v1": {"_id": "v1"}},
@@ -88,17 +87,16 @@ def test_fetch_skips_already_stored_videos(monkeypatch):
         patch("app.routers.fetch.list_playlist_video_ids", return_value=["v1"]),
         patch("app.routers.fetch.get_videos_metadata", return_value=[make_raw_video("v1")]),
     ):
-        response = client.post("/api/fetch")
+        response = post_fetch()
     body = response.json()
     assert body["videos_added"] == 0
     assert body["videos_skipped"] == 1
 
 
-def test_fetch_isolates_one_bad_channel_from_the_rest(monkeypatch):
+def test_fetch_isolates_one_bad_channel_from_the_rest():
     # A channel that fails to resolve (deleted/invalid ID) must not stop the
     # good channel from being processed - this is the partial-failure guarantee
     # the whitelist-driven fetch button depends on.
-    monkeypatch.setenv("YOUTUBE_API_KEY", "test-key")
     fake_db = FakeDB(channels={"good": {"_id": "good"}, "bad": {"_id": "bad"}})
 
     def fake_uploads_playlist(api_key, channel_id):
@@ -112,7 +110,7 @@ def test_fetch_isolates_one_bad_channel_from_the_rest(monkeypatch):
         patch("app.routers.fetch.list_playlist_video_ids", return_value=["v1"]),
         patch("app.routers.fetch.get_videos_metadata", return_value=[make_raw_video("v1")]),
     ):
-        response = client.post("/api/fetch")
+        response = post_fetch()
     body = response.json()
     assert response.status_code == 200
     assert body["channels_failed"] == ["bad"]
@@ -120,15 +118,14 @@ def test_fetch_isolates_one_bad_channel_from_the_rest(monkeypatch):
     assert body["videos_added"] == 1
 
 
-def test_fetch_isolates_http_error_from_youtube_api(monkeypatch):
-    monkeypatch.setenv("YOUTUBE_API_KEY", "test-key")
+def test_fetch_isolates_http_error_from_youtube_api():
     fake_db = FakeDB(channels={"quota-blocked": {"_id": "quota-blocked"}})
     http_error = HTTPError("url", 403, "quotaExceeded", hdrs=None, fp=None)  # type: ignore[arg-type]
     with (
         patch("app.routers.fetch.get_db", return_value=fake_db),
         patch("app.routers.fetch.get_uploads_playlist_id", side_effect=http_error),
     ):
-        response = client.post("/api/fetch")
+        response = post_fetch()
     body = response.json()
     assert response.status_code == 200
     assert body["channels_failed"] == ["quota-blocked"]
@@ -137,8 +134,7 @@ def test_fetch_isolates_http_error_from_youtube_api(monkeypatch):
 # --- security: the API key must never appear in a response body ---
 
 
-def test_fetch_success_response_never_contains_api_key(monkeypatch):
-    monkeypatch.setenv("YOUTUBE_API_KEY", "SUPER_SECRET_KEY")
+def test_fetch_success_response_never_contains_api_key():
     fake_db = FakeDB(channels={"UCabc": {"_id": "UCabc"}})
     with (
         patch("app.routers.fetch.get_db", return_value=fake_db),
@@ -146,16 +142,17 @@ def test_fetch_success_response_never_contains_api_key(monkeypatch):
         patch("app.routers.fetch.list_playlist_video_ids", return_value=["v1"]),
         patch("app.routers.fetch.get_videos_metadata", return_value=[make_raw_video("v1")]),
     ):
-        response = client.post("/api/fetch")
+        response = post_fetch("SUPER_SECRET_KEY")
+    assert response.status_code == 200
     assert "SUPER_SECRET_KEY" not in response.text
 
 
-def test_fetch_failure_response_never_contains_api_key(monkeypatch):
-    monkeypatch.setenv("YOUTUBE_API_KEY", "SUPER_SECRET_KEY")
+def test_fetch_failure_response_never_contains_api_key():
     fake_db = FakeDB(channels={"bad": {"_id": "bad"}})
     with (
         patch("app.routers.fetch.get_db", return_value=fake_db),
         patch("app.routers.fetch.get_uploads_playlist_id", side_effect=ValueError("No channel found for ID bad")),
     ):
-        response = client.post("/api/fetch")
+        response = post_fetch("SUPER_SECRET_KEY")
+    assert response.status_code == 200
     assert "SUPER_SECRET_KEY" not in response.text
