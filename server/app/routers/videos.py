@@ -1,3 +1,4 @@
+import re
 from datetime import UTC, datetime
 from itertools import zip_longest
 from typing import Annotated
@@ -31,6 +32,7 @@ async def list_videos(
         VideoSource | None, Query(description="Filter by source type")
     ] = None,
     channel_id: Annotated[str | None, Query(description="Filter by channel")] = None,
+    q: Annotated[str | None, Query(description="Case-insensitive title/channel search")] = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     skip: Annotated[int, Query(ge=0)] = 0,
     order: Annotated[str, Query(description="Order: recent or random")] = "random",
@@ -42,6 +44,22 @@ async def list_videos(
         query["source"] = source.value
     if channel_id:
         query["channel_id"] = channel_id
+
+    term = (q or "").strip()
+    if term:
+        # re.escape so the user's input is matched literally -- otherwise a stray
+        # "(" or "*" from a search box either errors or silently matches nothing.
+        pattern = re.escape(term)
+        query["$or"] = [
+            {"display_title": {"$regex": pattern, "$options": "i"}},
+            {"original_title": {"$regex": pattern, "$options": "i"}},
+            {"channel_title": {"$regex": pattern, "$options": "i"}},
+        ]
+
+        # Search results must be stable and paginable, so they bypass the random
+        # sampling and channel interleaving used for the feed.
+        cursor = db.videos.find(query).sort("created_at", -1).skip(skip).limit(limit)
+        return [Video(**doc) async for doc in cursor]
 
     if distribute:
         channel_ids = await db.videos.distinct("channel_id", query)
