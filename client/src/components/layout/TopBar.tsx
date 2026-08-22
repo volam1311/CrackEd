@@ -50,10 +50,6 @@ export function TopBar({ onToggleNav }: TopBarProps) {
   )
 }
 
-/**
- * Presentational for now — there is no search endpoint in anyone's task scope,
- * so submitting is deliberately inert rather than faking results.
- */
 function SearchInput() {
   return (
     <form

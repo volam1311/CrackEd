@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useApiKeys } from '../lib/apiKeys'
 
 type Channel = {
   id: string
@@ -21,12 +22,13 @@ const API_BASE = '/api'
 const PAGE_SIZE = 10
 
 export function FetchFromYouTube() {
+  const { keys, hasAiKey, hasYoutubeKey } = useApiKeys()
   const [channels, setChannels] = useState<Channel[]>([])
   const [channelId, setChannelId] = useState('')
   const [channelTitle, setChannelTitle] = useState('')
   const [loading, setLoading] = useState(false)
   const [fetchingVideos, setFetchingVideos] = useState(false)
-  const [youtubeApiKey, setYoutubeApiKey] = useState('')
+  const [rewritingId, setRewritingId] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
 
   const [videos, setVideos] = useState<VideoItem[]>([])
@@ -129,8 +131,8 @@ export function FetchFromYouTube() {
   }
 
   const handleFetchVideos = async () => {
-    if (!youtubeApiKey.trim()) {
-      setMessage('Please enter your YouTube API key.')
+    if (!hasYoutubeKey) {
+      setMessage('Please set your YouTube API key on the Settings page.')
       return
     }
     setFetchingVideos(true)
@@ -139,7 +141,7 @@ export function FetchFromYouTube() {
       const res = await fetch(`${API_BASE}/fetch`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ youtube_api_key: youtubeApiKey.trim() }),
+        body: JSON.stringify({ youtube_api_key: keys.youtubeDataKey }),
       })
       const data = await res.json()
       if (res.ok) {
@@ -158,6 +160,34 @@ export function FetchFromYouTube() {
       setMessage('Network error while fetching videos.')
     } finally {
       setFetchingVideos(false)
+    }
+  }
+
+  const handleRewriteTitle = async (videoId: string) => {
+    if (!hasAiKey) {
+      setMessage('Please set your AI API key on the Settings page.')
+      return
+    }
+    setRewritingId(videoId)
+    try {
+      const res = await fetch(`${API_BASE}/videos/${videoId}/title`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider: keys.aiProvider, api_key: keys.aiApiKey }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setVideos((prev: VideoItem[]) =>
+          prev.map((v: VideoItem) => v.id === videoId ? { ...v, display_title: data.display_title } : v)
+        )
+      } else {
+        const data = await res.json()
+        setMessage(data.detail || 'Failed to rewrite title')
+      }
+    } catch {
+      setMessage('Network error while rewriting title.')
+    } finally {
+      setRewritingId(null)
     }
   }
 
@@ -235,25 +265,16 @@ export function FetchFromYouTube() {
       <section className="bg-gray-900 rounded-xl p-5 border border-gray-800">
         <h2 className="text-lg font-semibold text-white mb-2">Fetch Videos</h2>
         <p className="text-sm text-gray-400 mb-4">
-          Pull the latest videos from all whitelisted channels. Your API key is only
-          used for this request and is never stored on the server.
+          Pull the latest videos from all whitelisted channels.
+          {!hasYoutubeKey && ' Set your YouTube API key on the Settings page first.'}
         </p>
-        <div className="flex flex-col gap-3">
-          <input
-            type="password"
-            placeholder="YouTube Data API key"
-            value={youtubeApiKey}
-            onChange={(e) => setYoutubeApiKey(e.target.value)}
-            className="w-full rounded-lg bg-gray-800 border border-gray-700 px-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-red-500"
-          />
-          <button
-            onClick={handleFetchVideos}
-            disabled={fetchingVideos || channels.length === 0 || !youtubeApiKey.trim()}
-            className="self-start rounded-lg bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed px-5 py-2.5 text-sm font-medium text-white transition-colors"
-          >
-            {fetchingVideos ? 'Fetching...' : 'Refetch Videos'}
-          </button>
-        </div>
+        <button
+          onClick={handleFetchVideos}
+          disabled={fetchingVideos || channels.length === 0 || !hasYoutubeKey}
+          className="rounded-lg bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed px-5 py-2.5 text-sm font-medium text-white transition-colors"
+        >
+          {fetchingVideos ? 'Fetching...' : 'Refetch Videos'}
+        </button>
       </section>
 
       {/* Whitelisted Channels List */}
@@ -329,12 +350,22 @@ export function FetchFromYouTube() {
                       {Math.floor(v.duration_seconds / 60)}:{String(v.duration_seconds % 60).padStart(2, '0')}
                     </p>
                   </div>
-                  <button
-                    onClick={() => handleDeleteVideo(v.id)}
-                    className="shrink-0 text-xs text-red-400 hover:text-red-300 transition-colors"
-                  >
-                    Delete
-                  </button>
+                  <div className="flex shrink-0 gap-2">
+                    <button
+                      onClick={() => handleRewriteTitle(v.id)}
+                      disabled={rewritingId === v.id || !hasAiKey}
+                      title={!hasAiKey ? 'Set AI key in Settings' : 'Rewrite title with AI'}
+                      className="text-xs text-blue-400 hover:text-blue-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {rewritingId === v.id ? 'Rewriting...' : 'Rewrite'}
+                    </button>
+                    <button
+                      onClick={() => handleDeleteVideo(v.id)}
+                      className="text-xs text-red-400 hover:text-red-300 transition-colors"
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </li>
               ))}
             </ul>

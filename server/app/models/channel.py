@@ -10,7 +10,7 @@ class ChannelCreate(BaseModel):
 
 
 class Channel(BaseModel):
-    id: str = Field(..., alias="_id")
+    id: str = Field(..., alias="_id", serialization_alias="id")
     title: str
     thumbnail_url: str | None = None
     added_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

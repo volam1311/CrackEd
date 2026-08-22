@@ -39,7 +39,7 @@ class VideoCreate(BaseModel):
 
 
 class Video(BaseModel):
-    id: str = Field(..., alias="_id")
+    id: str = Field(..., alias="_id", serialization_alias="id")
     source: VideoSource
     original_title: str
     display_title: str | None = None

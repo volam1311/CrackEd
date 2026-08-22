@@ -3,13 +3,20 @@ import { CloudUpload, MoreHorizontal } from 'lucide-react'
 import { formatBytes, formatDuration } from '../../lib/format'
 import { ACCEPTED_TYPES, type UploadedVideo } from './types'
 
+export type PreprocessOptions = {
+  clip: boolean
+  renameTitles: boolean
+}
+
 type UploadStepProps = {
   video: UploadedVideo | null
   error: string | null
   onFile: (file: File) => void
+  preprocessOptions: PreprocessOptions
+  onOptionsChange: (options: PreprocessOptions) => void
 }
 
-export function UploadStep({ video, error, onFile }: UploadStepProps) {
+export function UploadStep({ video, error, onFile, preprocessOptions, onOptionsChange }: UploadStepProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragOver, setDragOver] = useState(false)
 
@@ -134,26 +141,44 @@ export function UploadStep({ video, error, onFile }: UploadStepProps) {
 
         <section className="rounded-2xl border border-violet-500/20 bg-violet-500/10 p-4">
           <h2 className="mb-3 text-sm font-semibold text-violet-200">
-            AI will help you:
+            Optional AI features
           </h2>
-          <ul className="space-y-2 text-sm text-violet-100/90">
-            <li className="flex gap-2">
-              <span className="text-violet-400">•</span>
-              Extract audio & generate transcript.
-            </li>
-            <li className="flex gap-2">
-              <span className="text-violet-400">•</span>
-              Find the best split points.
-            </li>
-            <li className="flex gap-2">
-              <span className="text-violet-400">•</span>
-              Create titles for each clip.
-            </li>
-            <li className="flex gap-2">
-              <span className="text-violet-400">•</span>
-              Remove pauses and filler (optional).
-            </li>
-          </ul>
+          <p className="mb-3 text-xs text-violet-300/70">
+            Requires API keys configured in Settings.
+          </p>
+          <div className="space-y-3">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={preprocessOptions.clip}
+                onChange={(e) => onOptionsChange({ ...preprocessOptions, clip: e.target.checked })}
+                disabled={!video || video.status !== 'ready'}
+                className="size-4 rounded border-violet-400 bg-transparent text-accent focus:ring-accent/30"
+              />
+              <div>
+                <span className="text-sm text-violet-100">Clip into segments</span>
+                <p className="text-xs text-violet-300/70">Split long video into shorter clips using AI transcription</p>
+              </div>
+            </label>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={preprocessOptions.renameTitles}
+                onChange={(e) => onOptionsChange({ ...preprocessOptions, renameTitles: e.target.checked })}
+                disabled={!video || video.status !== 'ready'}
+                className="size-4 rounded border-violet-400 bg-transparent text-accent focus:ring-accent/30"
+              />
+              <div>
+                <span className="text-sm text-violet-100">AI rename titles</span>
+                <p className="text-xs text-violet-300/70">Generate engaging titles for each clip</p>
+              </div>
+            </label>
+          </div>
+          {video?.status === 'ready' && !preprocessOptions.clip && !preprocessOptions.renameTitles && (
+            <p className="mt-3 text-xs text-violet-300/60 italic">
+              No options selected — video will be published as-is.
+            </p>
+          )}
         </section>
       </div>
     </div>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { titleFromFilename } from '../lib/format'
+import { useApiKeys } from '../lib/apiKeys'
 import { readVideoMeta } from '../lib/videoMeta'
 import { buildMockClips } from '../features/upload/clips'
 import { DetailsStep } from '../features/upload/DetailsStep'
@@ -9,6 +10,7 @@ import { ReviewStep } from '../features/upload/ReviewStep'
 import { Stepper } from '../features/upload/Stepper'
 import { TipsRow } from '../features/upload/TipsRow'
 import { UploadStep } from '../features/upload/UploadStep'
+import type { PreprocessOptions } from '../features/upload/UploadStep'
 import {
   ACCEPTED_TYPES,
   MAX_BYTES,
@@ -50,6 +52,7 @@ function validateFile(file: File): string | null {
 }
 
 export function UploadVideos() {
+  const { keys, hasAiKey, hasGroqKey } = useApiKeys()
   const [step, setStep] = useState<StepId>('upload')
   const [maxReachable, setMaxReachable] = useState<StepId>('upload')
   const [video, setVideo] = useState<UploadedVideo | null>(null)
@@ -58,6 +61,8 @@ export function UploadVideos() {
   const [job, setJob] = useState<PreprocessJob>(idleJob)
   const [clips, setClips] = useState<Clip[]>([])
   const [published, setPublished] = useState(false)
+  const [uploadedFilename, setUploadedFilename] = useState<string | null>(null)
+  const [preprocessOptions, setPreprocessOptions] = useState<PreprocessOptions>({ clip: false, renameTitles: false })
 
   function unlock(next: StepId) {
     setMaxReachable((current) =>
@@ -116,8 +121,54 @@ export function UploadVideos() {
   }, [video?.id, video?.status])
 
   useEffect(() => {
-    if (!job.running) return
+    if (!job.running || !uploadedFilename) return
 
+    const canUseRealPreprocess = hasGroqKey && hasAiKey
+
+    if (canUseRealPreprocess) {
+      let cancelled = false
+      ;(async () => {
+        try {
+          setJob((c) => ({ ...c, stageIndex: 1 }))
+          const res = await fetch('/api/uploads/preprocess', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              filename: uploadedFilename,
+              transcript_api_key: keys.groqApiKey,
+              title_provider: keys.aiProvider,
+              title_api_key: keys.aiApiKey,
+            }),
+          })
+          if (cancelled) return
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({ detail: 'Preprocessing failed' }))
+            setError(data.detail || 'Preprocessing failed')
+            setJob({ running: false, complete: false, stageIndex: 0 })
+            return
+          }
+          const data = await res.json()
+          const realClips = (data.clips || []).map((c: { title: string; start_seconds: number; end_seconds: number; filename: string }, i: number) => ({
+            id: `clip-${i}`,
+            title: c.title,
+            start: c.start_seconds,
+            end: c.end_seconds,
+            included: true,
+            filename: c.filename,
+          })) as (Clip & { filename: string })[]
+          setClips(realClips)
+          setJob({ running: false, complete: true, stageIndex: 3 })
+        } catch {
+          if (!cancelled) {
+            setError('Network error during preprocessing.')
+            setJob({ running: false, complete: false, stageIndex: 0 })
+          }
+        }
+      })()
+      return () => { cancelled = true }
+    }
+
+    // Fallback: mock timer when keys are not configured
     const stageCount = details.removeFiller ? 4 : 3
     const timer = window.setInterval(() => {
       setJob((current) => {
@@ -131,29 +182,84 @@ export function UploadVideos() {
     }, 850)
 
     return () => window.clearInterval(timer)
-  }, [job.running, details.removeFiller])
+  }, [job.running, details.removeFiller, uploadedFilename, hasGroqKey, hasAiKey, keys])
 
   useEffect(() => {
     if (!job.complete || clips.length > 0) return
-    setClips(buildMockClips(video?.duration ?? 0, details.title))
-  }, [job.complete, clips.length, video?.duration, details.title])
+    if (!hasGroqKey || !hasAiKey) {
+      setClips(buildMockClips(video?.duration ?? 0, details.title))
+    }
+  }, [job.complete, clips.length, video?.duration, details.title, hasGroqKey, hasAiKey])
 
   function goTo(next: StepId) {
     if (stepIndex(next) <= stepIndex(maxReachable)) setStep(next)
   }
 
-  function continueFromUpload() {
+  async function continueFromUpload() {
     if (video?.status !== 'ready') return
+
+    const wantsAI = preprocessOptions.clip || preprocessOptions.renameTitles
+
+    if (!wantsAI) {
+      // No AI features selected — upload and publish directly
+      setError(null)
+      setStep('publish')
+      unlock('publish')
+      setDetails((d) => ({ ...d, title: d.title || titleFromFilename(video.name) }))
+      return
+    }
+
+    // Check keys are set
+    if (preprocessOptions.clip && (!hasGroqKey || !hasAiKey)) {
+      setError('Set your Groq and AI API keys on the Settings page to use clipping.')
+      return
+    }
+    if (preprocessOptions.renameTitles && !hasAiKey) {
+      setError('Set your AI API key on the Settings page to use title rewriting.')
+      return
+    }
+
+    setError(null)
     setStep('details')
     unlock('details')
   }
 
-  function continueFromDetails() {
+  async function continueFromDetails() {
     if (!details.title.trim() || !details.topic) {
       setError('Add a title and topic before preprocessing.')
       return
     }
-    setError(null)
+    if (hasGroqKey && hasAiKey && !uploadedFilename && video) {
+      setError(null)
+      setJob({ running: false, complete: false, stageIndex: 0 })
+      setStep('preprocess')
+      unlock('preprocess')
+
+      // Upload file first so the preprocess endpoint can access it
+      const formData = new FormData()
+      formData.append('file', video.file)
+      try {
+        const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData })
+        if (!uploadRes.ok) {
+          setError('Failed to upload video file for preprocessing.')
+          return
+        }
+        const { filename } = await uploadRes.json()
+        setUploadedFilename(filename)
+      } catch {
+        setError('Network error uploading video.')
+        return
+      }
+      setClips([])
+      setPublished(false)
+      setJob({ running: true, complete: false, stageIndex: 0 })
+      return
+    }
+    if (!hasGroqKey || !hasAiKey) {
+      setError(
+        'Set your Groq and AI API keys on the Settings page to enable preprocessing. Continuing with mock clips.'
+      )
+    }
     setClips([])
     setPublished(false)
     setJob({ running: true, complete: false, stageIndex: 0 })
@@ -193,19 +299,19 @@ export function UploadVideos() {
       </div>
 
       {step === 'upload' ? (
-        <UploadStep video={video} error={error} onFile={handleFile} />
+        <UploadStep
+          video={video}
+          error={error}
+          onFile={handleFile}
+          preprocessOptions={preprocessOptions}
+          onOptionsChange={setPreprocessOptions}
+        />
       ) : null}
       {step === 'details' ? (
         <DetailsStep details={details} onChange={setDetails} />
       ) : null}
       {step === 'preprocess' ? (
-        <PreprocessStep
-          job={job}
-          details={details}
-          onToggleFiller={(removeFiller) =>
-            setDetails((current) => ({ ...current, removeFiller }))
-          }
-        />
+        <PreprocessStep job={job} />
       ) : null}
       {step === 'review' ? (
         <ReviewStep clips={clips} onChange={setClips} />
@@ -218,41 +324,67 @@ export function UploadVideos() {
           published={published}
           onPublish={async () => {
             try {
-              // 1. Upload the actual video file
-              const formData = new FormData()
-              formData.append('file', video.file)
-              const uploadRes = await fetch('/api/upload', {
-                method: 'POST',
-                body: formData,
-              })
-              if (!uploadRes.ok) {
-                setError(
-                  uploadRes.status === 413
-                    ? 'The server rejected this file as too large. If you are on the Docker client, its upload size limit needs raising.'
-                    : `Failed to upload video file (HTTP ${uploadRes.status}).`,
-                )
-                return
-              }
-              const { filename } = await uploadRes.json()
+              let filename = uploadedFilename
 
-              // 2. Create the video metadata record
-              const res = await fetch('/api/videos', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  id: video.id,
-                  source: 'upload',
-                  original_title: details.title,
-                  display_title: details.title,
-                  description: details.description || null,
-                  duration_seconds: Math.round(video.duration),
-                  published_at: new Date().toISOString(),
-                  file_path: filename,
-                }),
-              })
-              if (!res.ok && res.status !== 409) {
-                setError('Failed to publish video to server.')
-                return
+              // Upload if not already done during preprocessing
+              if (!filename) {
+                const formData = new FormData()
+                formData.append('file', video.file)
+                const uploadRes = await fetch('/api/upload', {
+                  method: 'POST',
+                  body: formData,
+                })
+                if (!uploadRes.ok) {
+                  setError(
+                    uploadRes.status === 413
+                      ? 'The server rejected this file as too large. If you are on the Docker client, its upload size limit needs raising.'
+                      : `Failed to upload video file (HTTP ${uploadRes.status}).`,
+                  )
+                  return
+                }
+                const data = await uploadRes.json()
+                filename = data.filename
+              }
+
+              // If we have real preprocessed clips, publish them individually
+              const realClips = clips.filter((c) => c.included && 'filename' in c)
+              if (realClips.length > 0) {
+                const res = await fetch('/api/uploads/publish', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    clips: realClips.map((c) => ({
+                      title: c.title,
+                      start_seconds: c.start,
+                      end_seconds: c.end,
+                      filename: (c as Clip & { filename: string }).filename,
+                    })),
+                  }),
+                })
+                if (!res.ok) {
+                  setError('Failed to publish clips to server.')
+                  return
+                }
+              } else {
+                // Fallback: publish as single video
+                const res = await fetch('/api/videos', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    id: video.id,
+                    source: 'upload',
+                    original_title: details.title,
+                    display_title: details.title,
+                    description: details.description || null,
+                    duration_seconds: Math.round(video.duration),
+                    published_at: new Date().toISOString(),
+                    file_path: filename,
+                  }),
+                })
+                if (!res.ok && res.status !== 409) {
+                  setError('Failed to publish video to server.')
+                  return
+                }
               }
             } catch {
               setError('Network error while publishing.')
@@ -293,7 +425,9 @@ export function UploadVideos() {
             }}
             className="rounded-lg bg-accent px-5 py-2 text-sm font-semibold text-white hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
           >
-            Continue
+            {step === 'upload' && !preprocessOptions.clip && !preprocessOptions.renameTitles
+              ? 'Publish'
+              : 'Continue'}
           </button>
         </div>
       ) : null}
