@@ -1,4 +1,6 @@
 import { NavLink } from 'react-router-dom'
+import { DAILY_GOAL, videosToday } from '../../lib/progress'
+import { useProfile } from '../../lib/useProfile'
 import { Icon } from '../ui/Icon'
 import type { IconName } from '../ui/Icon'
 
@@ -16,6 +18,7 @@ const primaryNav: NavItem[] = [
   { to: '/', label: 'Home', icon: 'home' },
   { to: '/fetch', label: 'Fetch from YouTube', icon: 'youtube' },
   { to: '/upload', label: 'Upload Videos', icon: 'upload' },
+  { to: '/leaderboard', label: 'Leaderboard', icon: 'flame' },
 ]
 
 const secondaryNav: NavItem[] = [
@@ -69,20 +72,7 @@ export function Sidebar({ open, onNavigate }: SidebarProps) {
           ))}
         </nav>
 
-        <div className="mb-4 rounded-xl border border-border bg-surface p-4">
-          <div className="flex items-center gap-2">
-            <Icon name="flame" className="size-5 text-accent" filled />
-            <p className="text-sm font-semibold text-text">
-              Stay focused,
-              <br />
-              keep learning.
-            </p>
-          </div>
-          <p className="mt-3 text-xs text-muted">3 of 5 videos today</p>
-          <div className="mt-2 h-1 overflow-hidden rounded-full bg-border">
-            <div className="h-full w-3/5 rounded-full bg-accent" />
-          </div>
-        </div>
+        <StreakCard />
 
         <div className="flex flex-col gap-1 border-t border-border pt-3">
           {secondaryNav.map((item) => (
@@ -99,5 +89,45 @@ export function Sidebar({ open, onNavigate }: SidebarProps) {
         </div>
       </aside>
     </>
+  )
+}
+
+/** Live daily goal and streak, driven by real watch activity. */
+function StreakCard() {
+  const profile = useProfile()
+  const watched = videosToday(profile)
+  const pct = Math.min(100, (watched / DAILY_GOAL) * 100)
+
+  return (
+    <div className="mb-4 rounded-xl border border-border bg-surface p-4">
+      <div className="flex items-center gap-2">
+        <Icon name="flame" className="size-5 text-accent" filled />
+        <p className="text-sm font-semibold text-text">
+          {profile.streakDays > 1 ? (
+            <>
+              {profile.streakDays} day streak.
+              <br />
+              Keep it alive.
+            </>
+          ) : (
+            <>
+              Stay focused,
+              <br />
+              keep learning.
+            </>
+          )}
+        </p>
+      </div>
+      <p className="mt-3 text-xs text-muted">
+        {watched} of {DAILY_GOAL} videos today
+      </p>
+      <div className="mt-2 h-1 overflow-hidden rounded-full bg-border">
+        <div
+          className="h-full rounded-full bg-accent transition-all duration-500"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <p className="mt-2 text-xs text-muted">{profile.points} points</p>
+    </div>
   )
 }
