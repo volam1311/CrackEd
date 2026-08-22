@@ -27,7 +27,7 @@ export function PlayerModal({ video, onClose }: PlayerModalProps) {
   // player during render, rather than needing an effect to undo stale state.
   const [view, setView] = useState<{ videoId: string; mode: 'player' | 'quiz' } | null>(null)
 
-  const quiz = video ? quizFor(video.id) : null
+  const quiz = video ? quizFor(video.youtubeId ?? video.id) : null
   const mode = video && view && view.videoId === video.id ? view.mode : 'player'
 
   // Keep the dialog's open state in sync with `video`.
