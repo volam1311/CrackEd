@@ -1,7 +1,7 @@
 """Seed the channels collection with initial whitelisted YouTube channels."""
 
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from pymongo import MongoClient
 
@@ -31,7 +31,7 @@ def main():
             {"_id": channel["_id"]},
             {
                 "$set": {"title": channel["title"], "thumbnail_url": channel["thumbnail_url"]},
-                "$setOnInsert": {"added_at": datetime.now(timezone.utc)},
+                "$setOnInsert": {"added_at": datetime.now(UTC)},
             },
             upsert=True,
         )

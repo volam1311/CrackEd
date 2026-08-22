@@ -2,6 +2,7 @@ import mimetypes
 import uuid
 from pathlib import Path
 
+import anyio
 from fastapi import APIRouter, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
@@ -32,9 +33,11 @@ async def upload_file(file: UploadFile):
 
     UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
-    with open(dest, "wb") as f:
+    # Async file IO: a blocking write would stall the event loop for the whole
+    # upload, and this endpoint accepts files up to several GB.
+    async with await anyio.open_file(dest, "wb") as f:
         while chunk := await file.read(1024 * 1024):
-            f.write(chunk)
+            await f.write(chunk)
 
     return {"filename": saved_name, "url": f"/api/uploads/{saved_name}"}
 

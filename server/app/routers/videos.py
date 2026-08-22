@@ -1,4 +1,5 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query
 
@@ -10,9 +11,11 @@ router = APIRouter(prefix="/api/videos", tags=["videos"])
 
 @router.get("", response_model=list[Video])
 async def list_videos(
-    source: VideoSource | None = Query(None, description="Filter by source type"),
-    limit: int = Query(50, ge=1, le=200),
-    skip: int = Query(0, ge=0),
+    source: Annotated[
+        VideoSource | None, Query(description="Filter by source type")
+    ] = None,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    skip: Annotated[int, Query(ge=0)] = 0,
 ):
     db = get_db()
     query: dict = {}
@@ -39,7 +42,7 @@ async def create_video(payload: VideoCreate):
     if existing:
         raise HTTPException(status_code=409, detail="Video already exists")
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     doc = {
         "_id": payload.id,
         "source": payload.source.value,
