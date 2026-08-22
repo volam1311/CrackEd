@@ -8,8 +8,20 @@ def _cut_single_clip(source_path: str, start: float, end: float, output_path: st
     # -ss/-to as input options (both before -i) seek and stop against the same
     # timeline; -c copy avoids re-encoding, trading a little precision (snaps
     # to the nearest keyframe) for speed.
+    #
+    # +faststart moves the moov atom to the front of the output. Without it the
+    # index lands after the media data, and a browser <video> cannot begin
+    # playback -- it stalls on a black frame instead of erroring. -c copy alone
+    # inherits whatever layout the source had.
     subprocess.run(
-        ["ffmpeg", "-y", "-ss", str(start), "-to", str(end), "-i", source_path, "-c", "copy", output_path],
+        [
+            "ffmpeg", "-y",
+            "-ss", str(start), "-to", str(end),
+            "-i", source_path,
+            "-c", "copy",
+            "-movflags", "+faststart",
+            output_path,
+        ],
         check=True,
         capture_output=True,
     )
