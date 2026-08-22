@@ -88,8 +88,13 @@ async def publish(request: PublishRequest) -> dict:
     """Persist the user-reviewed clip list as separate Video records."""
     db = get_db()
     now = datetime.now(UTC)
+    total = len(request.clips)
+    # A single clip isn't really a "series" - only link/number clips when the
+    # upload actually got split into more than one part.
+    series_id = uuid.uuid4().hex if total > 1 else None
+
     created = []
-    for clip in request.clips:
+    for i, clip in enumerate(request.clips):
         doc = {
             "_id": uuid.uuid4().hex,
             "source": "upload",
@@ -103,6 +108,9 @@ async def publish(request: PublishRequest) -> dict:
             "published_at": now,
             "embeddable": True,
             "file_path": clip.filename,
+            "series_id": series_id,
+            "part_number": (i + 1) if series_id else None,
+            "total_parts": total if series_id else None,
             "created_at": now,
         }
         await db.videos.insert_one(doc)

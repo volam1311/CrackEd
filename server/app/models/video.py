@@ -36,6 +36,11 @@ class VideoCreate(BaseModel):
     published_at: datetime | None = None
     embeddable: bool = True
     file_path: str | None = None
+    # Set together for clips produced by splitting one upload into parts; left
+    # unset for a single video (YouTube or a non-split upload).
+    series_id: str | None = Field(None, description="Shared by every clip cut from the same upload")
+    part_number: int | None = Field(None, description="1-indexed position within the series")
+    total_parts: int | None = Field(None, description="Total number of clips in the series")
 
 
 class Video(BaseModel):
@@ -51,6 +56,9 @@ class Video(BaseModel):
     published_at: datetime | None = None
     embeddable: bool = True
     file_path: str | None = None
+    series_id: str | None = None
+    part_number: int | None = None
+    total_parts: int | None = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     model_config = {"populate_by_name": True}

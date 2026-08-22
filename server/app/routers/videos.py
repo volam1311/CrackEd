@@ -164,6 +164,9 @@ async def create_video(payload: VideoCreate):
         "published_at": payload.published_at,
         "embeddable": payload.embeddable,
         "file_path": payload.file_path,
+        "series_id": payload.series_id,
+        "part_number": payload.part_number,
+        "total_parts": payload.total_parts,
         "created_at": now,
     }
     await db.videos.insert_one(doc)
