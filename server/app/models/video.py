@@ -1,5 +1,5 @@
 import re
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from enum import StrEnum
 
 from pydantic import BaseModel, Field
@@ -51,6 +51,6 @@ class Video(BaseModel):
     published_at: datetime | None = None
     embeddable: bool = True
     file_path: str | None = None
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     model_config = {"populate_by_name": True}

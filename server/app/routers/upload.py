@@ -20,7 +20,7 @@ async def upload_file(file: UploadFile):
 
     UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
-    with open(dest, "wb") as f:  # noqa: ASYNC230 - streaming write, acceptable for hackathon scope
+    with open(dest, "wb") as f:
         while chunk := await file.read(1024 * 1024):
             f.write(chunk)
 
