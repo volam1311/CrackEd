@@ -52,3 +52,11 @@ watchfiles==1.2.0
     # via uvicorn
 websockets==17.0.1
     # via uvicorn
+motor>=3.7.0
+    # via cracked-server
+pymongo>=4.9.0
+    # via motor
+pydantic-settings>=2.13.0
+    # via cracked-server
+dnspython>=2.6.1
+    # via pymongo
