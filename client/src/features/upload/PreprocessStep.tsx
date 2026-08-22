@@ -1,74 +1,49 @@
-import { Check, LoaderCircle } from 'lucide-react'
-import { PREPROCESS_STAGES, type PreprocessJob, type VideoDetails } from './types'
+import { LoaderCircle, Check } from 'lucide-react'
+import type { PreprocessJob } from './types'
 
 type PreprocessStepProps = {
   job: PreprocessJob
-  details: VideoDetails
-  onToggleFiller: (value: boolean) => void
 }
 
-export function PreprocessStep({
-  job,
-  details,
-  onToggleFiller,
-}: PreprocessStepProps) {
+export function PreprocessStep({ job }: PreprocessStepProps) {
+  const progress = job.complete ? 100 : Math.round((job.stageIndex / 3) * 100)
+
   return (
-    <div className="mx-auto max-w-xl">
-      <p className="mb-6 text-sm text-muted">
-        Simulated AI pipeline — Person 2 can swap this for the real job later.
-        Split points and clip titles are mocked from the video length.
-      </p>
-
-      <label className="mb-6 flex items-start gap-3 rounded-xl border border-border bg-surface p-4 text-sm">
-        <input
-          type="checkbox"
-          checked={details.removeFiller}
-          onChange={(e) => onToggleFiller(e.target.checked)}
-          className="mt-0.5 accent-accent"
-        />
-        <span>
-          <span className="block font-medium text-white">
-            Remove pauses and filler
-          </span>
-          <span className="text-muted">Optional. Applied during preprocess.</span>
-        </span>
-      </label>
-
-      <ol className="space-y-3">
-        {PREPROCESS_STAGES.map((stage, i) => {
-          const skipFiller = i === 3 && !details.removeFiller
-          const done = job.complete || i < job.stageIndex
-          const active = job.running && i === job.stageIndex && !skipFiller
-
-          return (
-            <li
-              key={stage}
-              className="flex items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3"
-            >
-              <span className="grid size-7 place-items-center">
-                {skipFiller ? (
-                  <span className="size-2 rounded-full bg-border" />
-                ) : done ? (
-                  <Check className="size-4 text-emerald-400" />
-                ) : active ? (
-                  <LoaderCircle className="size-4 animate-spin text-accent" />
-                ) : (
-                  <span className="size-2 rounded-full bg-border" />
-                )}
-              </span>
-              <span
-                className={
-                  skipFiller
-                    ? 'text-sm text-muted line-through'
-                    : 'text-sm text-text'
-                }
-              >
-                {stage}
-              </span>
-            </li>
-          )
-        })}
-      </ol>
+    <div className="mx-auto max-w-md text-center py-12">
+      {job.complete ? (
+        <>
+          <div className="mx-auto mb-4 grid size-14 place-items-center rounded-full bg-emerald-500/15">
+            <Check className="size-7 text-emerald-400" />
+          </div>
+          <h2 className="text-lg font-semibold text-white mb-2">Processing complete</h2>
+          <p className="text-sm text-muted">Your video has been split into clips. Click Continue to review them.</p>
+        </>
+      ) : job.running ? (
+        <>
+          <div className="mx-auto mb-4 grid size-14 place-items-center rounded-full bg-accent/15">
+            <LoaderCircle className="size-7 animate-spin text-accent" />
+          </div>
+          <h2 className="text-lg font-semibold text-white mb-2">Processing your video...</h2>
+          <p className="text-sm text-muted mb-6">
+            Transcribing audio, finding split points, and generating titles.
+          </p>
+          <div className="h-2 overflow-hidden rounded-full bg-elevated">
+            <div
+              className="h-full rounded-full bg-accent transition-all duration-700"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <p className="mt-2 text-xs text-muted">{progress}%</p>
+        </>
+      ) : (
+        <>
+          <div className="mx-auto mb-4 grid size-14 place-items-center rounded-full bg-surface">
+            <LoaderCircle className="size-7 text-muted" />
+          </div>
+          <h2 className="text-lg font-semibold text-white mb-2">Ready to process</h2>
+          <p className="text-sm text-muted">Waiting to start...</p>
+        </>
+      )}
     </div>
   )
 }

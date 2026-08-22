@@ -51,7 +51,6 @@ export function TopBar({ onToggleNav }: TopBarProps) {
   )
 }
 
-/** Submits to /search, which queries the whole library rather than the loaded page. */
 function SearchInput() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
