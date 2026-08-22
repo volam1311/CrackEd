@@ -65,6 +65,7 @@ function mapApiVideoToVideo(api: ApiVideo): Video {
     id,
     youtubeId: isYoutube ? id : null,
     title: api.display_title ?? api.original_title,
+    originalTitle: api.original_title,
     description: api.description ?? '',
     channel: api.channel_title ?? (isYoutube ? 'YouTube' : 'User Upload'),
     channelVerified: true,

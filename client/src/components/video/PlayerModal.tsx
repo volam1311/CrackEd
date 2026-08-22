@@ -108,7 +108,8 @@ export function PlayerModal({ video, onClose }: PlayerModalProps) {
           videoId={video.id}
           videoTitle={video.title}
           questions={quiz}
-          onDone={onClose}
+          onBackToVideo={() => setView(null)}
+          onClose={onClose}
         />
       ) : (
         <>

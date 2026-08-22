@@ -13,6 +13,9 @@ export type Video = {
   youtubeId: string | null
   /** Title as shown in CrackEd — may be the AI-rewritten one, not YouTube's. */
   title: string
+  /** The source's own title. Differs from `title` once AI rewriting has run,
+   *  and is what makes a search match explicable to the viewer. */
+  originalTitle: string
   description: string
   channel: string
   channelVerified: boolean

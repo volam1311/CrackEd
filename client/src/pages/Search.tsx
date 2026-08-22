@@ -68,7 +68,7 @@ export function Search() {
         ) : null}
       </div>
 
-      <VideoRow title="Videos" videos={result.videos} onPlay={setPlaying} />
+      <VideoRow title="Videos" videos={result.videos} onPlay={setPlaying} showOriginalTitle />
 
       <PlayerModal video={playing} onClose={() => setPlaying(null)} />
     </>
