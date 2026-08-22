@@ -15,6 +15,7 @@ from app.services.youtube_client import (
 from app.services.youtube_ingest import filter_and_normalize_videos
 
 router = APIRouter(prefix="/api/fetch", tags=["fetch"])
+MAX_VIDEOS_PER_CHANNEL = 100  # keep one prolific channel from flooding the feed/DB
 
 
 class FetchRequest(BaseModel):
@@ -53,6 +54,9 @@ async def fetch_whitelisted_channels(request: FetchRequest) -> dict:
         try:
             playlist_id = get_uploads_playlist_id(api_key, channel_id)
             video_ids = list_playlist_video_ids(api_key, playlist_id)
+            # uploads playlists are ordered most-recent-first, so this keeps the
+            # newest videos and skips fetching metadata we'd discard anyway
+            video_ids = video_ids[:MAX_VIDEOS_PER_CHANNEL]
             raw_videos = get_videos_metadata(api_key, video_ids)
         except (ValueError, HTTPError):
             failed_channels.append(channel_id)
