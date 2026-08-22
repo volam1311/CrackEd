@@ -27,25 +27,71 @@ export async function fetchHello(name: string): Promise<HelloResponse> {
   return res.json()
 }
 
-/*
- * Feed data. These resolve from `mocks/videos.ts` until Person 1's endpoints
- * exist; swapping to the real API means replacing the bodies here and nothing
- * else, provided the server matches the `Video` shape in `types.ts`.
- */
+type ApiVideo = {
+  id: string
+  source: 'youtube' | 'upload'
+  original_title: string
+  display_title: string | null
+  description: string | null
+  channel_id: string | null
+  channel_title: string | null
+  thumbnail_url: string | null
+  duration_seconds: number
+  published_at: string | null
+  embeddable: boolean
+  file_path: string | null
+  created_at: string
+}
 
-/** Simulates network latency so loading states are exercised in dev. */
-function resolve<T>(value: T, ms = 250): Promise<T> {
-  return new Promise((done) => setTimeout(() => done(value), ms))
+function mapApiVideoToVideo(api: ApiVideo): Video {
+  const isYoutube = api.source === 'youtube'
+  return {
+    id: api.id,
+    youtubeId: isYoutube ? api.id : null,
+    title: api.display_title ?? api.original_title,
+    description: api.description ?? '',
+    channel: api.channel_title ?? (isYoutube ? 'YouTube' : 'User Upload'),
+    channelVerified: true,
+    thumbnailUrl: api.thumbnail_url ?? (isYoutube ? `https://i.ytimg.com/vi/${api.id}/maxresdefault.jpg` : ''),
+    durationSeconds: api.duration_seconds,
+    views: 0,
+    publishedAt: api.published_at ?? api.created_at,
+    source: api.source,
+    category: isYoutube ? 'Education' : 'Uploaded',
+    filePath: api.file_path ?? null,
+  }
 }
 
 export async function fetchFeed(): Promise<Video[]> {
-  return resolve(mockVideos)
+  try {
+    const res = await fetch('/api/videos?limit=50')
+    if (res.ok) {
+      const data: ApiVideo[] = await res.json()
+      if (data.length > 0) {
+        return data.map(mapApiVideoToVideo)
+      }
+    }
+  } catch {
+    // Fall back to mocks
+  }
+  return mockVideos
 }
 
 export async function fetchTodaysPick(): Promise<Video> {
-  return resolve(mockTodaysPick)
+  try {
+    const res = await fetch('/api/videos?limit=1')
+    if (res.ok) {
+      const data: ApiVideo[] = await res.json()
+      if (data.length > 0) {
+        return mapApiVideoToVideo(data[0])
+      }
+    }
+  } catch {
+    // Fall back to mock
+  }
+  return mockTodaysPick
 }
 
 export async function fetchContinueLearning(): Promise<VideoWithProgress[]> {
-  return resolve(mockContinueLearning)
+  return mockContinueLearning
 }

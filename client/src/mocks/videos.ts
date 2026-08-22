@@ -13,13 +13,14 @@ function thumb(youtubeId: string): string {
   return `https://i.ytimg.com/vi/${youtubeId}/maxresdefault.jpg`
 }
 
-type Seed = Omit<Video, 'thumbnailUrl' | 'source'> & { thumbnailUrl?: string }
+type Seed = Omit<Video, 'thumbnailUrl' | 'source' | 'filePath'> & { thumbnailUrl?: string }
 
 function toVideo(seed: Seed): Video {
   return {
     ...seed,
     thumbnailUrl: seed.thumbnailUrl ?? thumb(seed.youtubeId ?? ''),
     source: 'youtube',
+    filePath: null,
   }
 }
 
