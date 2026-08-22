@@ -118,6 +118,29 @@ def test_fetch_isolates_one_bad_channel_from_the_rest():
     assert body["videos_added"] == 1
 
 
+def test_fetch_caps_videos_fetched_per_channel():
+    # A channel with far more uploads than MAX_VIDEOS_PER_CHANNEL must not have
+    # metadata fetched (or stored) for all of them - only the most recent slice.
+    fake_db = FakeDB(channels={"prolific": {"_id": "prolific"}})
+    all_video_ids = [f"v{i}" for i in range(250)]
+
+    def fake_get_metadata(api_key, video_ids):
+        return [make_raw_video(vid) for vid in video_ids]
+
+    with (
+        patch("app.routers.fetch.get_db", return_value=fake_db),
+        patch("app.routers.fetch.get_uploads_playlist_id", return_value="UUprolific"),
+        patch("app.routers.fetch.list_playlist_video_ids", return_value=all_video_ids),
+        patch("app.routers.fetch.get_videos_metadata", side_effect=fake_get_metadata) as mock_get_metadata,
+    ):
+        response = post_fetch()
+
+    assert response.status_code == 200
+    assert response.json()["videos_added"] == 100
+    requested_ids = mock_get_metadata.call_args.args[1]
+    assert requested_ids == all_video_ids[:100]
+
+
 def test_fetch_isolates_http_error_from_youtube_api():
     fake_db = FakeDB(channels={"quota-blocked": {"_id": "quota-blocked"}})
     http_error = HTTPError("url", 403, "quotaExceeded", hdrs=None, fp=None)  # type: ignore[arg-type]

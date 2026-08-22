@@ -1,3 +1,4 @@
+import random
 import re
 from datetime import UTC, datetime
 from itertools import zip_longest
@@ -92,8 +93,11 @@ async def list_videos(
         return [Video(**doc) async for doc in db.videos.aggregate(pipeline)]
 
     if distribute:
+        # None is a real bucket here, not "no channel" - it's every uploaded
+        # video (they have no channel_id). Dropping it would silently exclude
+        # all uploads from the feed instead of just weighting them like any
+        # other single channel.
         channel_ids = await db.videos.distinct("channel_id", query)
-        channel_ids = [c for c in channel_ids if c is not None]
         if not channel_ids:
             cursor = db.videos.find(query).sort("created_at", -1).skip(skip).limit(limit)
             return [Video(**doc) async for doc in cursor]
@@ -108,11 +112,14 @@ async def list_videos(
             bucket = [doc async for doc in cursor]
             buckets.append(bucket)
 
+        # Strict round-robin (upload, channel, upload, channel, ...) reads as
+        # mechanical, especially with only a couple of buckets. Shuffling each
+        # round keeps the balance but removes the rigid visible pattern.
         interleaved: list[dict] = []
         for group in zip_longest(*buckets):
-            for doc in group:
-                if doc is not None:
-                    interleaved.append(doc)
+            docs = [doc for doc in group if doc is not None]
+            random.shuffle(docs)
+            interleaved.extend(docs)
 
         return [Video(**doc) for doc in interleaved[:limit]]
 
