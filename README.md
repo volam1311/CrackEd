@@ -1,31 +1,66 @@
 # CrackEd
 
-Monorepo with a React + TypeScript client and a FastAPI server.
+An educational video platform that makes useful content as clickable and engaging as brain-rot content — without turning the actual material into brain rot.
 
-## Structure
+## Architecture
 
+```mermaid
+flowchart LR
+    subgraph client [Client]
+        React[React + Vite + Tailwind]
+    end
+
+    subgraph server [Server]
+        FastAPI[FastAPI + Uvicorn]
+        Uploads[/uploads filesystem/]
+    end
+
+    subgraph external [External Services]
+        YouTube[YouTube Data API]
+        AI[AI Providers<br/>OpenAI / Anthropic / Gemini]
+        Groq[Groq Transcription]
+    end
+
+    MongoDB[(MongoDB)]
+
+    React -->|"/api/*"| FastAPI
+    FastAPI --> MongoDB
+    FastAPI --> Uploads
+    FastAPI --> YouTube
+    FastAPI --> AI
+    FastAPI --> Groq
 ```
-client/   # Vite + React + TypeScript (port 5173)
-server/   # FastAPI + Uvicorn (port 8000)
-```
 
-## Prerequisites
+## Quick Start (Docker)
 
-- Node.js 20+
-- Python 3.11+
-- Optional: [uv](https://docs.astral.sh/uv/)
-
-## Run the server
-
-With `uv`:
+> [!IMPORTANT]
+> You need [Docker](https://www.docker.com/) and Docker Compose installed.
 
 ```bash
-cd server
-uv sync
-uv run uvicorn app.main:app --reload --port 8000
+git clone <repo-url>
+cd CrackEd
+docker compose up --build
 ```
 
-Or with pip:
+| Service | URL | Description |
+|---------|-----|-------------|
+| Client | http://localhost:3000 | React app (nginx) |
+| Server | http://localhost:8000 | FastAPI |
+| MongoDB | localhost:27017 | Database |
+| API Docs | http://localhost:8000/docs | Interactive Swagger UI |
+
+To stop:
+
+```bash
+docker compose down
+```
+
+> [!WARNING]
+> Running `docker compose down -v` will **delete all data** including the MongoDB volume and uploaded videos. Only use this if you want a clean slate.
+
+## Quick Start (Local Dev)
+
+### Server
 
 ```bash
 cd server
@@ -35,9 +70,7 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 ```
 
-API docs: http://127.0.0.1:8000/docs
-
-## Run the client
+### Client
 
 ```bash
 cd client
@@ -45,106 +78,116 @@ npm install
 npm run dev
 ```
 
-App: http://localhost:5173
+The Vite dev server proxies `/api/*` to `localhost:8000` automatically.
 
-Vite proxies `/api/*` to the FastAPI server, so you can call `/api/health` from the browser without CORS issues in local dev.
+> [!TIP]
+> For local dev without Docker, you still need MongoDB running on `localhost:27017`. You can start one with:
+> ```bash
+> docker run -d -p 27017:27017 mongo:7
+> ```
 
-## Run with Docker
+## Configuration (API Keys)
 
-Make sure you have [Docker](https://www.docker.com/) and Docker Compose installed.
+CrackEd uses a **Bring Your Own Key (BYOK)** approach. API keys are stored in your browser's localStorage and sent directly to providers per-request.
+
+> [!IMPORTANT]
+> API keys are **never** stored on the server. They exist only in your browser and are sent directly to the provider APIs.
+
+Navigate to **Settings** in the sidebar to configure:
+
+| Key | Purpose |
+|-----|---------|
+| YouTube Data API Key | Fetching video metadata from whitelisted channels |
+| AI Provider + API Key | Title rewriting (brainrot style) and video segmentation |
+| Groq API Key | Audio transcription for uploaded video preprocessing |
+
+> [!TIP]
+> To find a YouTube channel ID, go to the channel page on YouTube, click "About", then "Share channel" — the ID is the string starting with `UC...`. You can also use https://commentpicker.com/youtube-channel-id.php.
+
+## Seed Data
+
+To populate initial whitelisted channels (3Blue1Brown, StatQuest):
 
 ```bash
-docker compose up --build
+docker compose exec server python scripts/seed_channels.py
 ```
 
-This starts three services:
+## Project Structure
 
-| Service  | URL                    | Description             |
-| -------- | ---------------------- | ----------------------- |
-| Client   | http://localhost:3000   | React app (nginx)       |
-| Server   | http://localhost:8000   | FastAPI                 |
-| MongoDB  | localhost:27017        | Database                |
-
-API docs: http://localhost:8000/docs
-
-To stop everything:
-
-```bash
-docker compose down
+```
+CrackEd/
+├── client/                  # React + Vite + TypeScript
+│   ├── src/
+│   │   ├── components/      # Shared UI components
+│   │   ├── features/        # Feature-specific components (upload wizard)
+│   │   ├── lib/             # Hooks and utilities (apiKeys, format, etc.)
+│   │   ├── pages/           # Route pages (Home, Fetch, Upload, Settings)
+│   │   └── mocks/           # Mock data for development
+│   ├── Dockerfile
+│   └── nginx.conf
+├── server/                  # FastAPI + Python
+│   ├── app/
+│   │   ├── routers/         # API endpoints (channels, videos, fetch, upload, title, preprocess)
+│   │   ├── models/          # Pydantic models (Channel, Video)
+│   │   ├── services/        # Business logic (title_rewrite, segmentation, transcript, video_cutter)
+│   │   ├── db.py            # MongoDB connection
+│   │   └── main.py          # App entrypoint
+│   ├── scripts/             # Seed and verification scripts
+│   ├── Dockerfile
+│   └── requirements.txt
+├── .github/workflows/       # CI/CD (server + client)
+├── docker-compose.yml
+└── README.md
 ```
 
-To stop and remove the database volume:
-
-```bash
-docker compose down -v
-```
-
-### Environment variables
-
-The server container receives these variables by default (set in `docker-compose.yml`):
-
-| Variable   | Default                     |
-| ---------- | --------------------------- |
-| `MONGO_URL`| `mongodb://mongo:27017`     |
-| `MONGO_DB` | `cracked`                   |
-
-## Application flow
+## Upload Pipeline
 
 ```mermaid
-flowchart TB
-  subgraph Frontend
-    U[User]
-    Home[Home feed<br/>Today's Pick / Recommended / Continue Learning]
-    Cards[Video cards]
-    Player[YouTube iframe player]
-    FetchUI[Fetch from YouTube UI<br/>Add channels]
-    UploadUI[Upload Videos UI<br/>5-step wizard]
-  end
+flowchart TD
+    Upload[1. Upload File] --> Options{AI features selected?}
+    Options -->|No| DirectPublish[Publish as single video]
+    Options -->|Yes| Details[2. Enter Details]
+    Details --> Preprocess[3. Preprocess]
 
-  subgraph Backend["Backend Core — Person 1"]
-    API[FastAPI]
-    UploadEP[Upload endpoint]
-    CRUD[Video / channel CRUD]
-    FS["/uploads filesystem"]
-    DB[(Database<br/>videos · channels)]
-  end
+    subgraph preprocess [Preprocessing Pipeline]
+        Transcribe[Groq: Transcribe audio]
+        Segment[AI: Find split points + generate titles]
+        Cut[FFmpeg: Cut video into clips]
+        Transcribe --> Segment --> Cut
+    end
 
-  subgraph Pipeline["YouTube + AI — Person 2"]
-    YTPipe[YouTube pipeline]
-    YTAPI[YouTube Data API]
-    LLM[LLM title rewrite]
-  end
-
-  U --> Home
-  U --> FetchUI
-  U --> UploadUI
-  U --> Player
-
-  Home --> Cards
-  Cards --> CRUD
-  Player --> Cards
-
-  FetchUI --> YTPipe
-  YTPipe --> YTAPI
-  YTPipe --> DB
-  YTPipe --> LLM
-  UploadEP --> LLM
-  LLM --> DB
-
-  UploadUI --> UploadEP
-  UploadEP --> FS
-  UploadEP --> DB
-  CRUD --> DB
-  API --- UploadEP
-  API --- CRUD
+    Preprocess --> preprocess
+    preprocess --> Review[4. Review clips]
+    Review --> Publish[5. Publish]
 ```
 
-### Upload wizard
+> [!TIP]
+> If no AI features are selected during upload (checkboxes unchecked), the video is published immediately as a single file — no API keys required.
+
+## YouTube Fetch Pipeline
 
 ```mermaid
 flowchart LR
-  A[1. Upload] --> B[2. Details]
-  B --> C[3. Preprocess<br/>mock OK if AI split not ready]
-  C --> D[4. Review]
-  D --> E[5. Publish]
+    Channels[Whitelisted Channels] --> FetchAPI[YouTube Data API]
+    FetchAPI --> Store[Store metadata in MongoDB]
+    Store --> Rewrite[AI Title Rewrite<br/>brainrot style]
+    Rewrite --> Feed[Appears in Home feed]
 ```
+
+## CI/CD
+
+Two GitHub Actions workflows run on push/PR to `main`:
+
+- **`.github/workflows/cicd-server.yml`** — Lint (ruff) + test (pytest) + Docker build/push to GHCR
+- **`.github/workflows/cicd-client.yml`** — Lint (oxlint) + build (vite) + Docker build/push to GHCR
+
+Images are pushed to `ghcr.io/<repo>/server` and `ghcr.io/<repo>/client` tagged with the commit SHA and `latest`.
+
+## Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MONGO_URL` | `mongodb://mongo:27017` | MongoDB connection string |
+| `MONGO_DB` | `cracked` | Database name |
+
+These are set in `docker-compose.yml` for the server container. No other environment variables are required — all API keys are provided via the browser UI.
