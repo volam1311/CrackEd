@@ -144,9 +144,11 @@ def test_call_provider_unsupported_raises():
 
 
 def test_call_provider_anthropic_missing_tool_use_raises():
-    with patch("urllib.request.urlopen", return_value=FakeResponse({"content": [{"type": "text", "text": "oops"}]})):
-        with pytest.raises(ValueError):
-            _call_provider("anthropic", "key", "x")
+    with (
+        patch("urllib.request.urlopen", return_value=FakeResponse({"content": [{"type": "text", "text": "oops"}]})),
+        pytest.raises(ValueError),
+    ):
+        _call_provider("anthropic", "key", "x")
 
 
 # --- segment_transcript (orchestration) ---

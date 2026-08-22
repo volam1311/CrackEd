@@ -7,7 +7,7 @@ import sys
 from dotenv import load_dotenv
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-from app.services.youtube_client import (  # noqa: E402
+from app.services.youtube_client import (
     get_uploads_playlist_id,
     get_videos_metadata,
     list_playlist_video_ids,

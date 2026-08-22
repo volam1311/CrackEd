@@ -7,8 +7,8 @@ import time
 from dotenv import load_dotenv
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-from app.services.segmentation import segment_transcript  # noqa: E402
-from app.services.transcript import generate_transcript  # noqa: E402
+from app.services.segmentation import segment_transcript
+from app.services.transcript import generate_transcript
 
 VIDEO_PATH = "/Users/trung/crackEd_videos/segments/Electronics-s1-part00.mp4"
 

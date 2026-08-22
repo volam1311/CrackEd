@@ -1,7 +1,7 @@
 """Fetch pipeline: pull fresh videos for every whitelisted channel and store new ones."""
 
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from urllib.error import HTTPError
 
 from fastapi import APIRouter, HTTPException
@@ -30,7 +30,7 @@ def _to_video_doc(video: dict) -> dict:
     doc["_id"] = doc.pop("id")
     doc.setdefault("display_title", None)
     doc.setdefault("file_path", None)
-    doc["created_at"] = datetime.now(timezone.utc)
+    doc["created_at"] = datetime.now(UTC)
     return doc
 
 

@@ -4,7 +4,7 @@ import logging
 import shutil
 import tempfile
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
@@ -76,7 +76,7 @@ def preprocess(request: PreprocessRequest) -> dict:
                 )
     except HTTPException:
         raise
-    except Exception as e:  # noqa: BLE001 - any pipeline failure maps to one safe response
+    except Exception as e:
         logger.exception("Preprocessing failed for %s", request.filename)
         raise HTTPException(status_code=502, detail="Preprocessing failed") from e
 
@@ -87,7 +87,7 @@ def preprocess(request: PreprocessRequest) -> dict:
 async def publish(request: PublishRequest) -> dict:
     """Persist the user-reviewed clip list as separate Video records."""
     db = get_db()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     created = []
     for clip in request.clips:
         doc = {

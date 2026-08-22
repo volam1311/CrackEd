@@ -99,29 +99,37 @@ def test_rewrite_title_truncates_overlong_title():
 
 
 def test_rewrite_title_rejects_empty_title():
-    with patch("urllib.request.urlopen", return_value=FakeResponse(openai_payload("   "))):
-        with pytest.raises(ValueError):
-            rewrite_title("openai", "key", "Title", "desc")
+    with (
+        patch("urllib.request.urlopen", return_value=FakeResponse(openai_payload("   "))),
+        pytest.raises(ValueError),
+    ):
+        rewrite_title("openai", "key", "Title", "desc")
 
 
 def test_rewrite_title_anthropic_missing_tool_use_raises():
-    with patch("urllib.request.urlopen", return_value=FakeResponse({"content": [{"type": "text", "text": "oops"}]})):
-        with pytest.raises(ValueError):
-            rewrite_title("anthropic", "key", "Title", "desc")
+    with (
+        patch("urllib.request.urlopen", return_value=FakeResponse({"content": [{"type": "text", "text": "oops"}]})),
+        pytest.raises(ValueError),
+    ):
+        rewrite_title("anthropic", "key", "Title", "desc")
 
 
 def test_rewrite_title_gemini_no_candidates_raises():
-    with patch("urllib.request.urlopen", return_value=FakeResponse({"candidates": []})):
-        with pytest.raises(ValueError):
-            rewrite_title("gemini", "key", "Title", "desc")
+    with (
+        patch("urllib.request.urlopen", return_value=FakeResponse({"candidates": []})),
+        pytest.raises(ValueError),
+    ):
+        rewrite_title("gemini", "key", "Title", "desc")
 
 
 def test_rewrite_title_malformed_provider_response_raises():
     # Missing the expected 'choices' key entirely - simulates an API contract
     # change or an error payload we didn't anticipate.
-    with patch("urllib.request.urlopen", return_value=FakeResponse({"unexpected": "shape"})):
-        with pytest.raises((KeyError, ValueError)):
-            rewrite_title("openai", "key", "Title", "desc")
+    with (
+        patch("urllib.request.urlopen", return_value=FakeResponse({"unexpected": "shape"})),
+        pytest.raises((KeyError, ValueError)),
+    ):
+        rewrite_title("openai", "key", "Title", "desc")
 
 
 # --- security ---

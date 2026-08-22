@@ -31,7 +31,7 @@ async def rewrite_video_title(video_id: str, request: RewriteTitleRequest) -> di
             video["original_title"],
             video.get("description") or "",
         )
-    except Exception as e:  # noqa: BLE001 - any provider/parsing failure maps to one safe response
+    except Exception as e:
         raise HTTPException(status_code=502, detail="Title rewrite failed") from e
 
     await db.videos.update_one({"_id": video_id}, {"$set": {"display_title": new_title}})
