@@ -41,10 +41,13 @@ export function VideoCard({ video, onPlay, watchedPct }: VideoCardProps) {
 
 function Thumbnail({ video, watchedPct }: { video: Video; watchedPct?: number }) {
   const [failed, setFailed] = useState(false)
+  // An empty src resolves to the page URL and may never fire onError, so treat
+  // a missing thumbnail as failed up front. Uploaded videos have no thumbnail.
+  const showPlaceholder = failed || !video.thumbnailUrl
 
   return (
     <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-surface">
-      {failed ? (
+      {showPlaceholder ? (
         <div className="size-full bg-gradient-to-br from-surface via-elevated to-surface" />
       ) : (
         <img

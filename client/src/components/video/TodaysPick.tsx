@@ -10,6 +10,7 @@ type TodaysPickProps = {
 
 export function TodaysPick({ video, onPlay }: TodaysPickProps) {
   const [failed, setFailed] = useState(false)
+  const showPlaceholder = failed || !video.thumbnailUrl
 
   return (
     <section className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
@@ -18,7 +19,7 @@ export function TodaysPick({ video, onPlay }: TodaysPickProps) {
         onClick={() => onPlay(video)}
         className="group relative aspect-video w-full overflow-hidden rounded-2xl bg-surface"
       >
-        {failed ? (
+        {showPlaceholder ? (
           <div className="size-full bg-gradient-to-br from-surface via-elevated to-surface" />
         ) : (
           <img
