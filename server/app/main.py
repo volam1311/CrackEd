@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.db import close_mongo_client, get_mongo_client
-from app.routers import channels, videos
+from app.routers import channels, fetch, videos
 
 
 @asynccontextmanager
@@ -29,6 +29,7 @@ app.add_middleware(
 )
 
 app.include_router(channels.router)
+app.include_router(fetch.router)
 app.include_router(videos.router)
 
 
