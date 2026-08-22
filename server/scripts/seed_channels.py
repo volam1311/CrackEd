@@ -10,7 +10,7 @@ MONGO_DB = os.getenv("MONGO_DB", "cracked")
 
 CHANNELS = [
     {
-        "_id": "UCCEdvAoqlElUvVn",
+        "_id": "UCtYLUTtgS3k1Fg4y5tAhLbw",
         "title": "StatQuest with Josh Starmer",
         "thumbnail_url": None,
     },

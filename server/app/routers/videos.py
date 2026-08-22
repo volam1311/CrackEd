@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from itertools import zip_longest
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query
@@ -9,18 +10,70 @@ from app.models.video import Video, VideoCreate, VideoSource
 router = APIRouter(prefix="/api/videos", tags=["videos"])
 
 
-@router.get("", response_model=list[Video])
-async def list_videos(
-    source: Annotated[
-        VideoSource | None, Query(description="Filter by source type")
-    ] = None,
-    limit: Annotated[int, Query(ge=1, le=200)] = 50,
-    skip: Annotated[int, Query(ge=0)] = 0,
+@router.get("/count")
+async def count_videos(
+    source: Annotated[VideoSource | None, Query(description="Filter by source type")] = None,
+    channel_id: Annotated[str | None, Query(description="Filter by channel")] = None,
 ):
     db = get_db()
     query: dict = {}
     if source:
         query["source"] = source.value
+    if channel_id:
+        query["channel_id"] = channel_id
+    total = await db.videos.count_documents(query)
+    return {"total": total}
+
+
+@router.get("", response_model=list[Video])
+async def list_videos(
+    source: Annotated[
+        VideoSource | None, Query(description="Filter by source type")
+    ] = None,
+    channel_id: Annotated[str | None, Query(description="Filter by channel")] = None,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    skip: Annotated[int, Query(ge=0)] = 0,
+    order: Annotated[str, Query(description="Order: recent or random")] = "random",
+    distribute: Annotated[bool, Query(description="Uniform distribution across channels")] = False,
+):
+    db = get_db()
+    query: dict = {}
+    if source:
+        query["source"] = source.value
+    if channel_id:
+        query["channel_id"] = channel_id
+
+    if distribute:
+        channel_ids = await db.videos.distinct("channel_id", query)
+        channel_ids = [c for c in channel_ids if c is not None]
+        if not channel_ids:
+            cursor = db.videos.find(query).sort("created_at", -1).skip(skip).limit(limit)
+            return [Video(**doc) async for doc in cursor]
+
+        per_channel = max(1, limit // len(channel_ids))
+        per_channel_skip = skip // len(channel_ids)
+
+        buckets: list[list[dict]] = []
+        for ch_id in channel_ids:
+            ch_query = {**query, "channel_id": ch_id}
+            cursor = db.videos.find(ch_query).sort("created_at", -1).skip(per_channel_skip).limit(per_channel)
+            bucket = [doc async for doc in cursor]
+            buckets.append(bucket)
+
+        interleaved: list[dict] = []
+        for group in zip_longest(*buckets):
+            for doc in group:
+                if doc is not None:
+                    interleaved.append(doc)
+
+        return [Video(**doc) for doc in interleaved[:limit]]
+
+    if order == "random":
+        pipeline: list[dict] = []
+        if query:
+            pipeline.append({"$match": query})
+        pipeline.append({"$sample": {"size": limit}})
+        return [Video(**doc) async for doc in db.videos.aggregate(pipeline)]
 
     cursor = db.videos.find(query).sort("created_at", -1).skip(skip).limit(limit)
     return [Video(**doc) async for doc in cursor]

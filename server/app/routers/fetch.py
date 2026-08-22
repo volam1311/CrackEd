@@ -1,10 +1,10 @@
 """Fetch pipeline: pull fresh videos for every whitelisted channel and store new ones."""
 
-import os
 from datetime import UTC, datetime
 from urllib.error import HTTPError
 
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 
 from app.db import get_db
 from app.services.youtube_client import (
@@ -17,11 +17,8 @@ from app.services.youtube_ingest import filter_and_normalize_videos
 router = APIRouter(prefix="/api/fetch", tags=["fetch"])
 
 
-def _get_api_key() -> str:
-    api_key = os.environ.get("YOUTUBE_API_KEY")
-    if not api_key:
-        raise HTTPException(status_code=500, detail="YOUTUBE_API_KEY not configured")
-    return api_key
+class FetchRequest(BaseModel):
+    youtube_api_key: str
 
 
 def _to_video_doc(video: dict) -> dict:
@@ -35,11 +32,17 @@ def _to_video_doc(video: dict) -> dict:
 
 
 @router.post("")
-async def fetch_whitelisted_channels() -> dict:
-    """Refetch every whitelisted channel's uploads; insert videos we haven't stored yet."""
-    api_key = _get_api_key()
+async def fetch_whitelisted_channels(request: FetchRequest) -> dict:
+    """Refetch every whitelisted channel's uploads; insert videos we haven't stored yet.
+
+    The YouTube API key is provided by the caller (BYOK) and is not stored.
+    """
+    api_key = request.youtube_api_key
     db = get_db()
     channels = [c async for c in db.channels.find()]
+
+    if not channels:
+        raise HTTPException(status_code=400, detail="No whitelisted channels found. Add channels first.")
 
     added = 0
     skipped = 0
