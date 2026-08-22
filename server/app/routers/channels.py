@@ -38,3 +38,4 @@ async def delete_channel(channel_id: str):
     result = await db.channels.delete_one({"_id": channel_id})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Channel not found")
+    await db.videos.delete_many({"channel_id": channel_id})
