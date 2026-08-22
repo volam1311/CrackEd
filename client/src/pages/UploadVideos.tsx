@@ -25,7 +25,6 @@ const emptyDetails: VideoDetails = {
   description: '',
   topic: '',
   tagText: '',
-  apiKey: '',
   removeFiller: false,
 }
 
@@ -154,10 +153,6 @@ export function UploadVideos() {
       setError('Add a title and topic before preprocessing.')
       return
     }
-    if (!details.apiKey.trim()) {
-      setError('Add an API key so AI can split the lecture and title each clip.')
-      return
-    }
     setError(null)
     setClips([])
     setPublished(false)
@@ -184,8 +179,7 @@ export function UploadVideos() {
 
   const canContinue =
     (step === 'upload' && video?.status === 'ready') ||
-    (step === 'details' &&
-      Boolean(details.title.trim() && details.topic && details.apiKey.trim())) ||
+    (step === 'details' && Boolean(details.title.trim() && details.topic)) ||
     (step === 'preprocess' && job.complete) ||
     (step === 'review' && clips.some((clip) => clip.included))
 

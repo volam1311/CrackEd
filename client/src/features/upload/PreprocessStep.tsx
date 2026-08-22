@@ -15,8 +15,8 @@ export function PreprocessStep({
   return (
     <div className="mx-auto max-w-xl">
       <p className="mb-6 text-sm text-muted">
-        Using your API key to split the lecture and generate clip titles.
-        Person 2 can swap this mock for the real LLM job later.
+        Simulated AI pipeline — Person 2 can swap this for the real job later.
+        Split points and clip titles are mocked from the video length.
       </p>
 
       <label className="mb-6 flex items-start gap-3 rounded-xl border border-border bg-surface p-4 text-sm">
