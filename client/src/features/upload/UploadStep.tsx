@@ -1,5 +1,5 @@
 import { useRef, useState, type DragEvent } from 'react'
-import { CloudUpload, MoreHorizontal } from 'lucide-react'
+import { CloudUpload, X } from 'lucide-react'
 import { formatBytes, formatDuration } from '../../lib/format'
 import { ACCEPTED_TYPES, type UploadedVideo } from './types'
 
@@ -12,11 +12,27 @@ type UploadStepProps = {
   video: UploadedVideo | null
   error: string | null
   onFile: (file: File) => void
+  onRemove: () => void
   preprocessOptions: PreprocessOptions
   onOptionsChange: (options: PreprocessOptions) => void
+  /** Clipping needs both Groq (transcription) and an AI provider (segmentation). */
+  hasGroqKey: boolean
+  hasAiKey: boolean
 }
 
-export function UploadStep({ video, error, onFile, preprocessOptions, onOptionsChange }: UploadStepProps) {
+export function UploadStep({
+  video,
+  error,
+  onFile,
+  onRemove,
+  preprocessOptions,
+  onOptionsChange,
+  hasGroqKey,
+  hasAiKey,
+}: UploadStepProps) {
+  const videoReady = Boolean(video) && video?.status === 'ready'
+  const clipDisabled = !videoReady || !hasGroqKey || !hasAiKey
+  const renameDisabled = !videoReady || !hasAiKey
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragOver, setDragOver] = useState(false)
 
@@ -98,10 +114,12 @@ export function UploadStep({ video, error, onFile, preprocessOptions, onOptionsC
                   </p>
                   <button
                     type="button"
+                    onClick={onRemove}
                     className="rounded p-1 text-muted hover:text-text"
-                    aria-label="More"
+                    aria-label="Remove file"
+                    title="Remove file"
                   >
-                    <MoreHorizontal className="size-4" />
+                    <X className="size-4" />
                   </button>
                 </div>
                 <p className="mt-0.5 text-xs text-muted">
@@ -152,12 +170,15 @@ export function UploadStep({ video, error, onFile, preprocessOptions, onOptionsC
                 type="checkbox"
                 checked={preprocessOptions.clip}
                 onChange={(e) => onOptionsChange({ ...preprocessOptions, clip: e.target.checked })}
-                disabled={!video || video.status !== 'ready'}
-                className="size-4 rounded border-violet-400 bg-transparent text-accent focus:ring-accent/30"
+                disabled={clipDisabled}
+                className="size-4 rounded border-violet-400 bg-transparent text-accent focus:ring-accent/30 disabled:opacity-40"
               />
               <div>
                 <span className="text-sm text-violet-100">Clip into segments</span>
                 <p className="text-xs text-violet-300/70">Split long video into shorter clips using AI transcription</p>
+                {videoReady && (!hasGroqKey || !hasAiKey) ? (
+                  <p className="text-xs text-amber-300/80">Add your Groq and AI provider keys in Settings to enable this.</p>
+                ) : null}
               </div>
             </label>
             <label className="flex items-center gap-3 cursor-pointer">
@@ -165,12 +186,15 @@ export function UploadStep({ video, error, onFile, preprocessOptions, onOptionsC
                 type="checkbox"
                 checked={preprocessOptions.renameTitles}
                 onChange={(e) => onOptionsChange({ ...preprocessOptions, renameTitles: e.target.checked })}
-                disabled={!video || video.status !== 'ready'}
-                className="size-4 rounded border-violet-400 bg-transparent text-accent focus:ring-accent/30"
+                disabled={renameDisabled}
+                className="size-4 rounded border-violet-400 bg-transparent text-accent focus:ring-accent/30 disabled:opacity-40"
               />
               <div>
                 <span className="text-sm text-violet-100">AI rename titles</span>
                 <p className="text-xs text-violet-300/70">Generate engaging titles for each clip</p>
+                {videoReady && !hasAiKey ? (
+                  <p className="text-xs text-amber-300/80">Add your AI provider key in Settings to enable this.</p>
+                ) : null}
               </div>
             </label>
           </div>

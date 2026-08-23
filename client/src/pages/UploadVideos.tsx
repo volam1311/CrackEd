@@ -70,6 +70,15 @@ export function UploadVideos() {
     )
   }
 
+  function handleRemoveFile() {
+    setVideo(null)
+    setError(null)
+    setPublished(false)
+    setClips([])
+    setJob(idleJob)
+    setUploadedFilename(null)
+  }
+
   async function handleFile(file: File) {
     const message = validateFile(file)
     if (message) {
@@ -303,8 +312,11 @@ export function UploadVideos() {
           video={video}
           error={error}
           onFile={handleFile}
+          onRemove={handleRemoveFile}
           preprocessOptions={preprocessOptions}
           onOptionsChange={setPreprocessOptions}
+          hasGroqKey={hasGroqKey}
+          hasAiKey={hasAiKey}
         />
       ) : null}
       {step === 'details' ? (
