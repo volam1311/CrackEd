@@ -7,6 +7,12 @@ const AI_PROVIDERS: { value: AiProvider; label: string }[] = [
   { value: 'gemini', label: 'Google Gemini' },
 ]
 
+const AI_PROVIDER_KEY_HELP: Record<AiProvider, string> = {
+  openai: 'Get a key from platform.openai.com under your account\'s API keys page.',
+  anthropic: 'Get a key from console.anthropic.com under Settings → API Keys.',
+  gemini: 'Get a free key from Google AI Studio at aistudio.google.com/apikey.',
+}
+
 export function Settings() {
   const { keys, setKeys } = useApiKeys()
   const [draft, setDraft] = useState<ApiKeys>(keys)
@@ -40,6 +46,9 @@ export function Settings() {
 
       <section className="bg-gray-900 rounded-xl p-5 border border-gray-800 space-y-4">
         <h2 className="text-lg font-semibold text-white">YouTube Data API</h2>
+        <p className="text-xs text-gray-400">
+          Get a free key from the Google Cloud Console under APIs &amp; Services → Credentials, after enabling the YouTube Data API v3.
+        </p>
         <label className="block">
           <span className="mb-1.5 block text-sm text-gray-300">API Key</span>
           <input
@@ -56,9 +65,12 @@ export function Settings() {
       </section>
 
       <section className="bg-gray-900 rounded-xl p-5 border border-gray-800 space-y-4">
-        <h2 className="text-lg font-semibold text-white">AI Provider</h2>
+        <h2 className="text-lg font-semibold text-white">AI Provider <span className="text-sm font-normal text-gray-500">(Optional)</span></h2>
         <p className="text-xs text-gray-400">
-          Used for title rewriting and video segmentation.
+          {AI_PROVIDER_KEY_HELP[draft.aiProvider]}
+        </p>
+        <p className="text-xs text-gray-400">
+          Used for title rewriting and video segmentation, using your own account's tokens.
         </p>
 
         <label className="block">
@@ -87,7 +99,10 @@ export function Settings() {
       </section>
 
       <section className="bg-gray-900 rounded-xl p-5 border border-gray-800 space-y-4">
-        <h2 className="text-lg font-semibold text-white">Groq (Transcription)</h2>
+        <h2 className="text-lg font-semibold text-white">Groq (Transcription) <span className="text-sm font-normal text-gray-500">(Optional)</span></h2>
+        <p className="text-xs text-gray-400">
+          Get a free key from console.groq.com under API Keys — no credit card required.
+        </p>
         <label className="block">
           <span className="mb-1.5 block text-sm text-gray-300">API Key</span>
           <input
