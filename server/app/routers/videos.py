@@ -33,6 +33,7 @@ async def list_videos(
         VideoSource | None, Query(description="Filter by source type")
     ] = None,
     channel_id: Annotated[str | None, Query(description="Filter by channel")] = None,
+    series_id: Annotated[str | None, Query(description="Fetch all clips from one split upload, in order")] = None,
     q: Annotated[str | None, Query(description="Case-insensitive title/channel search")] = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     skip: Annotated[int, Query(ge=0)] = 0,
@@ -45,6 +46,11 @@ async def list_videos(
         query["source"] = source.value
     if channel_id:
         query["channel_id"] = channel_id
+
+    if series_id:
+        # A lookup, not a feed - always the full ordered set, no sampling/interleaving.
+        cursor = db.videos.find({**query, "series_id": series_id}).sort("part_number", 1)
+        return [Video(**doc) async for doc in cursor]
 
     term = (q or "").strip()
     if term:
