@@ -17,7 +17,7 @@ from app.services.youtube_client import (
 from app.services.youtube_ingest import filter_and_normalize_videos
 
 router = APIRouter(prefix="/api/fetch", tags=["fetch"])
-MAX_VIDEOS_PER_CHANNEL = 100  # keep one prolific channel from flooding the feed/DB
+MAX_VIDEOS_PER_CHANNEL = 20  # keep one prolific channel from flooding the feed/DB
 
 
 class FetchRequest(BaseModel):

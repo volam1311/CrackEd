@@ -136,9 +136,9 @@ def test_fetch_caps_videos_fetched_per_channel():
         response = post_fetch()
 
     assert response.status_code == 200
-    assert response.json()["videos_added"] == 100
+    assert response.json()["videos_added"] == 20
     requested_ids = mock_get_metadata.call_args.args[1]
-    assert requested_ids == all_video_ids[:100]
+    assert requested_ids == all_video_ids[:20]
 
 
 def test_fetch_isolates_http_error_from_youtube_api():
