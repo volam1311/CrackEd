@@ -22,8 +22,8 @@ SYSTEM_PROMPT = (
     "- Aim for segments roughly 5 to 8 minutes long, split at natural topic shifts.\n"
     "- Vary the technique from title to title - never repeat the same pattern back "
     "to back. Draw from: curiosity gaps, dares/challenges, mistake warnings, "
-    "comparisons, POV framing, forbidden-knowledge framing, numbered lists, and "
-    "shock/hyperbole framing.\n"
+    "comparisons, POV framing, forbidden-knowledge framing, numbered lists, "
+    "shock/hyperbole framing, and lone-wolf/apex-predator framing.\n"
     "- Light Gen Z slang (rizz, sigma, goated, no cap, bussin) is fine occasionally, "
     "but do not force it into every title.\n"
     "- Examples, each using a different technique:\n"
@@ -37,6 +37,8 @@ SYSTEM_PROMPT = (
     "  'The Recursion Situation Is INSANE' (shock/hyperbole)\n"
     "  'Binary Search Did WHAT to the Performance...' (dramatic action)\n"
     "  'This Sorting Algorithm Is Actually Goated' (light slang)\n"
+    "  \"Debug Like a Lone Wolf: No Stack Overflow Needed\" (lone-wolf framing)\n"
+    "  'This Algorithm Separates the Lions From the Sheep' (apex-predator framing)\n"
     '- Output ONLY a JSON object: {"segments": [{"start_seconds": <int>, "title": "<string>"}]}\n'
     "- start_seconds values must be timestamps that appear in the transcript."
 )
