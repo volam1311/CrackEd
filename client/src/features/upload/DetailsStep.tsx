@@ -12,10 +12,6 @@ export function DetailsStep({ details, onChange }: DetailsStepProps) {
 
   return (
     <div className="mx-auto max-w-2xl space-y-5">
-      <p className="text-xs text-muted">
-        <span className="text-accent">*</span> Required
-      </p>
-
       <label className="block">
         <span className="mb-1.5 block text-sm text-muted">
           Title <span className="text-accent">*</span>
@@ -69,6 +65,10 @@ export function DetailsStep({ details, onChange }: DetailsStepProps) {
           placeholder="neural networks, lecture, intro"
         />
       </label>
+
+      <p className="text-right text-xs font-bold text-accent italic">
+        * Required
+      </p>
     </div>
   )
 }

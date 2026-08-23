@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { ArrowLeft } from 'lucide-react'
 import { titleFromFilename } from '../lib/format'
 import { useApiKeys } from '../lib/apiKeys'
 import { readVideoMeta } from '../lib/videoMeta'
@@ -301,9 +302,24 @@ export function UploadVideos() {
   return (
     <div className="mx-auto max-w-6xl">
       <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight text-white">
-          Upload & Preprocess
-        </h1>
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-white">
+            Upload & Preprocess
+          </h1>
+          {step !== 'upload' ? (
+            <button
+              type="button"
+              onClick={() => {
+                const i = stepIndex(step)
+                if (i > 0) setStep(STEPS[i - 1].id)
+              }}
+              className="mt-2 flex w-fit items-center gap-1.5 rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-sm font-medium text-text hover:bg-white/20"
+            >
+              <ArrowLeft className="size-4" />
+              Back
+            </button>
+          ) : null}
+        </div>
         <Stepper current={step} maxReachable={maxReachable} onSelect={goTo} />
       </div>
 
@@ -414,18 +430,7 @@ export function UploadVideos() {
       ) : null}
 
       {step !== 'publish' ? (
-        <div className="mt-8 flex items-center justify-between">
-          <button
-            type="button"
-            disabled={step === 'upload'}
-            onClick={() => {
-              const i = stepIndex(step)
-              if (i > 0) setStep(STEPS[i - 1].id)
-            }}
-            className="rounded-lg border border-border px-4 py-2 text-sm text-text hover:bg-white/5 disabled:invisible"
-          >
-            Back
-          </button>
+        <div className="mt-8 flex items-center justify-end">
           <button
             type="button"
             disabled={!canContinue}
