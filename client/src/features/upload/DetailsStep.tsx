@@ -12,8 +12,14 @@ export function DetailsStep({ details, onChange }: DetailsStepProps) {
 
   return (
     <div className="mx-auto max-w-2xl space-y-5">
+      <p className="text-xs text-muted">
+        <span className="text-accent">*</span> Required
+      </p>
+
       <label className="block">
-        <span className="mb-1.5 block text-sm text-muted">Title</span>
+        <span className="mb-1.5 block text-sm text-muted">
+          Title <span className="text-accent">*</span>
+        </span>
         <input
           value={details.title}
           onChange={(e) => set('title', e.target.value)}
@@ -34,7 +40,9 @@ export function DetailsStep({ details, onChange }: DetailsStepProps) {
       </label>
 
       <label className="block">
-        <span className="mb-1.5 block text-sm text-muted">Topic / subject</span>
+        <span className="mb-1.5 block text-sm text-muted">
+          Topic / subject <span className="text-accent">*</span>
+        </span>
         <select
           value={details.topic}
           onChange={(e) => set('topic', e.target.value)}
