@@ -14,3 +14,8 @@ dependencies = [
 
 [dependency-groups]
 dev = ["httpx2>=0.28.0", "pytest>=8.0.0"]
+
+[tool.pytest.ini_options]
+# `pytest` (the console script CI uses) doesn't add the cwd to sys.path the way
+# `python -m pytest` does, so `import app...` fails without this.
+pythonpath = ["."]
