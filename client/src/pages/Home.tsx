@@ -119,7 +119,7 @@ export function Home() {
         progressById={progressById}
       />
 
-      <PlayerModal video={playing} onClose={() => setPlaying(null)} />
+      <PlayerModal video={playing} onClose={() => setPlaying(null)} onSelectVideo={setPlaying} />
     </>
   )
 }

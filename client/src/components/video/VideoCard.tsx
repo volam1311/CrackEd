@@ -77,6 +77,12 @@ function Thumbnail({ video, watchedPct }: { video: Video; watchedPct?: number })
         {formatDuration(video.durationSeconds)}
       </span>
 
+      {video.partNumber && video.totalParts ? (
+        <span className="absolute top-2 left-2 rounded bg-black/80 px-1.5 py-0.5 text-xs font-medium text-white tabular-nums">
+          Part {video.partNumber}/{video.totalParts}
+        </span>
+      ) : null}
+
       {watchedPct !== undefined ? (
         <div className="absolute inset-x-0 bottom-0 h-1 bg-black/50">
           <div className="h-full bg-accent" style={{ width: `${watchedPct}%` }} />

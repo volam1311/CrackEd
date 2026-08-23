@@ -42,6 +42,9 @@ type ApiVideo = {
   published_at: string | null
   embeddable: boolean
   file_path: string | null
+  series_id: string | null
+  part_number: number | null
+  total_parts: number | null
   created_at: string
 }
 
@@ -76,7 +79,18 @@ function mapApiVideoToVideo(api: ApiVideo): Video {
     source: api.source,
     category: isYoutube ? 'Education' : 'Uploaded',
     filePath: api.file_path ?? null,
+    seriesId: api.series_id ?? null,
+    partNumber: api.part_number ?? null,
+    totalParts: api.total_parts ?? null,
   }
+}
+
+/** All clips from one split upload, in part order. */
+export async function fetchSeries(seriesId: string): Promise<Video[]> {
+  const res = await fetch(`/api/videos?series_id=${encodeURIComponent(seriesId)}`, withTimeout())
+  if (!res.ok) return []
+  const data: ApiVideo[] = await res.json()
+  return data.map(mapApiVideoToVideo)
 }
 
 export async function fetchFeed(): Promise<Video[]> {

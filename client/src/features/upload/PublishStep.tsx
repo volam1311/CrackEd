@@ -26,10 +26,11 @@ export function PublishStep({
         <div className="mx-auto mb-4 grid size-12 place-items-center rounded-full bg-emerald-500/20">
           <Check className="size-6 text-emerald-400" />
         </div>
-        <h2 className="text-xl font-semibold text-white">Published locally</h2>
+        <h2 className="text-xl font-semibold text-white">Published</h2>
         <p className="mt-2 text-sm text-muted">
-          {included.length} clip{included.length === 1 ? '' : 's'} ready. Person 1’s
-          API can replace this with a real publish call.
+          {included.length > 0
+            ? `${included.length} clip${included.length === 1 ? '' : 's'} published.`
+            : 'Your video is live.'}
         </p>
       </div>
     )
@@ -64,19 +65,27 @@ export function PublishStep({
       </div>
 
       <div className="rounded-2xl border border-border bg-surface p-5">
-        <h3 className="text-sm font-medium text-text">
-          {included.length} clips to publish
-        </h3>
-        <ul className="mt-3 space-y-2 text-sm text-muted">
-          {included.map((clip) => (
-            <li key={clip.id} className="flex justify-between gap-3">
-              <span className="truncate">{clip.title}</span>
-              <span className="shrink-0 font-mono text-xs text-muted">
-                {formatDuration(clip.end - clip.start)}
-              </span>
-            </li>
-          ))}
-        </ul>
+        {included.length > 0 ? (
+          <>
+            <h3 className="text-sm font-medium text-text">
+              {included.length} clip{included.length === 1 ? '' : 's'} to publish
+            </h3>
+            <ul className="mt-3 space-y-2 text-sm text-muted">
+              {included.map((clip) => (
+                <li key={clip.id} className="flex justify-between gap-3">
+                  <span className="truncate">{clip.title}</span>
+                  <span className="shrink-0 font-mono text-xs text-muted">
+                    {formatDuration(clip.end - clip.start)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : (
+          <h3 className="text-sm font-medium text-text">
+            Publishing as a single video
+          </h3>
+        )}
       </div>
 
       <button

@@ -30,6 +30,9 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Ensure ffmpeg is available
+        run: command -v ffmpeg || { sudo apt-get update && sudo apt-get install -y ffmpeg; }
+
       - name: Install dependencies
         run: |
           pip install --upgrade pip

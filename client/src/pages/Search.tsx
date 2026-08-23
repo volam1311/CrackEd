@@ -70,7 +70,7 @@ export function Search() {
 
       <VideoRow title="Videos" videos={result.videos} onPlay={setPlaying} showOriginalTitle />
 
-      <PlayerModal video={playing} onClose={() => setPlaying(null)} />
+      <PlayerModal video={playing} onClose={() => setPlaying(null)} onSelectVideo={setPlaying} />
     </>
   )
 }

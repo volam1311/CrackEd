@@ -194,3 +194,44 @@ def test_publish_stores_source_as_upload_and_computed_duration():
     assert doc["source"] == "upload"
     assert doc["duration_seconds"] == 120
     assert doc["file_path"] == "a.mp4"
+
+
+def test_publish_multiple_clips_share_a_series_id_with_sequential_part_numbers():
+    fake_db = FakeDB()
+    with patch("app.routers.preprocess.get_db", return_value=fake_db):
+        response = client.post(
+            "/api/uploads/publish",
+            json={
+                "clips": [
+                    {"title": "Intro", "start_seconds": 0, "end_seconds": 300, "filename": "a.mp4"},
+                    {"title": "Middle", "start_seconds": 300, "end_seconds": 600, "filename": "b.mp4"},
+                    {"title": "End", "start_seconds": 600, "end_seconds": 900, "filename": "c.mp4"},
+                ]
+            },
+        )
+    published = response.json()["published"]
+    series_ids = {v["series_id"] for v in published}
+    assert len(series_ids) == 1
+    assert None not in series_ids
+    assert sorted(v["part_number"] for v in published) == [1, 2, 3]
+    assert all(v["total_parts"] == 3 for v in published)
+    # part_number must track title order, not insertion/dict order
+    by_title = {v["original_title"]: v for v in published}
+    assert by_title["Intro"]["part_number"] == 1
+    assert by_title["Middle"]["part_number"] == 2
+    assert by_title["End"]["part_number"] == 3
+
+
+def test_publish_single_clip_has_no_series_fields():
+    # A single clip isn't a "series" - leaving these unset avoids a pointless
+    # "Part 1 of 1" badge on every non-split upload.
+    fake_db = FakeDB()
+    with patch("app.routers.preprocess.get_db", return_value=fake_db):
+        response = client.post(
+            "/api/uploads/publish",
+            json={"clips": [{"title": "Whole Video", "start_seconds": 0, "end_seconds": 60, "filename": "a.mp4"}]},
+        )
+    doc = response.json()["published"][0]
+    assert doc["series_id"] is None
+    assert doc["part_number"] is None
+    assert doc["total_parts"] is None

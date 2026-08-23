@@ -26,6 +26,8 @@ export function FetchFromYouTube() {
   const [channels, setChannels] = useState<Channel[]>([])
   const [channelId, setChannelId] = useState('')
   const [channelTitle, setChannelTitle] = useState('')
+  const [videoInput, setVideoInput] = useState('')
+  const [addingVideo, setAddingVideo] = useState(false)
   const [loading, setLoading] = useState(false)
   const [fetchingVideos, setFetchingVideos] = useState(false)
   const [rewritingId, setRewritingId] = useState<string | null>(null)
@@ -163,6 +165,42 @@ export function FetchFromYouTube() {
     }
   }
 
+  const handleAddVideo = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!videoInput.trim()) return
+    if (!hasYoutubeKey) {
+      setMessage('Please set your YouTube API key on the Settings page.')
+      return
+    }
+    setAddingVideo(true)
+    setMessage(null)
+    try {
+      const res = await fetch(`${API_BASE}/fetch/video`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ video: videoInput.trim(), youtube_api_key: keys.youtubeDataKey }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setMessage(
+          data.status === 'already_present'
+            ? 'That video is already in the library.'
+            : 'Video added.'
+        )
+        setVideoInput('')
+        setVideoPage(0)
+        await loadVideos(0)
+        await loadVideoCount()
+      } else {
+        setMessage(data.detail || 'Failed to add video')
+      }
+    } catch {
+      setMessage('Network error while adding video.')
+    } finally {
+      setAddingVideo(false)
+    }
+  }
+
   const handleRewriteTitle = async (videoId: string) => {
     if (!hasAiKey) {
       setMessage('Please set your AI API key on the Settings page.')
@@ -275,6 +313,33 @@ export function FetchFromYouTube() {
         >
           {fetchingVideos ? 'Fetching...' : 'Refetch Videos'}
         </button>
+      </section>
+
+      {/* Add a Specific Video */}
+      <section className="bg-gray-900 rounded-xl p-5 border border-gray-800">
+        <h2 className="text-lg font-semibold text-white mb-2">Add a Specific Video</h2>
+        <p className="text-sm text-gray-400 mb-4">
+          Pin one video directly by ID or URL — useful for a video you need in
+          the library that a channel's whitelist fetch might not pull in (it's
+          capped to each channel's 100 most recent uploads).
+          {!hasYoutubeKey && ' Set your YouTube API key on the Settings page first.'}
+        </p>
+        <form onSubmit={handleAddVideo} className="flex flex-col gap-3 sm:flex-row">
+          <input
+            type="text"
+            placeholder="Video URL or ID (e.g. https://youtu.be/aircAruvnKk)"
+            value={videoInput}
+            onChange={(e) => setVideoInput(e.target.value)}
+            className="w-full rounded-lg bg-gray-800 border border-gray-700 px-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-red-500"
+          />
+          <button
+            type="submit"
+            disabled={addingVideo || !videoInput.trim() || !hasYoutubeKey}
+            className="shrink-0 rounded-lg bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed px-5 py-2.5 text-sm font-medium text-white transition-colors"
+          >
+            {addingVideo ? 'Adding...' : 'Add Video'}
+          </button>
+        </form>
       </section>
 
       {/* Whitelisted Channels List */}

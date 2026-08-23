@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { ArrowLeft } from 'lucide-react'
 import { titleFromFilename } from '../lib/format'
 import { useApiKeys } from '../lib/apiKeys'
 import { readVideoMeta } from '../lib/videoMeta'
@@ -63,11 +64,39 @@ export function UploadVideos() {
   const [published, setPublished] = useState(false)
   const [uploadedFilename, setUploadedFilename] = useState<string | null>(null)
   const [preprocessOptions, setPreprocessOptions] = useState<PreprocessOptions>({ clip: false, renameTitles: false })
+  // Actual visited steps, not the full step list - the no-AI path jumps
+  // upload -> publish directly, so "the previous step in STEPS" is wrong.
+  const [, setHistory] = useState<StepId[]>([])
+
+  function goForward(from: StepId, to: StepId) {
+    setHistory((h) => [...h, from])
+    setStep(to)
+  }
+
+  function goBack() {
+    setHistory((h) => {
+      if (h.length === 0) return h
+      setStep(h[h.length - 1])
+      return h.slice(0, -1)
+    })
+  }
 
   function unlock(next: StepId) {
     setMaxReachable((current) =>
       stepIndex(next) > stepIndex(current) ? next : current,
     )
+  }
+
+  function handleRemoveFile() {
+    setVideo(null)
+    setError(null)
+    setStep('upload')
+    setMaxReachable('upload')
+    setPublished(false)
+    setClips([])
+    setJob(idleJob)
+    setUploadedFilename(null)
+    setHistory([])
   }
 
   async function handleFile(file: File) {
@@ -84,6 +113,7 @@ export function UploadVideos() {
     setPublished(false)
     setClips([])
     setJob(idleJob)
+    setHistory([])
     setVideo({
       id,
       file,
@@ -192,7 +222,7 @@ export function UploadVideos() {
   }, [job.complete, clips.length, video?.duration, details.title, hasGroqKey, hasAiKey])
 
   function goTo(next: StepId) {
-    if (stepIndex(next) <= stepIndex(maxReachable)) setStep(next)
+    if (stepIndex(next) <= stepIndex(maxReachable)) goForward(step, next)
   }
 
   async function continueFromUpload() {
@@ -203,7 +233,7 @@ export function UploadVideos() {
     if (!wantsAI) {
       // No AI features selected — upload and publish directly
       setError(null)
-      setStep('publish')
+      goForward('upload', 'publish')
       unlock('publish')
       setDetails((d) => ({ ...d, title: d.title || titleFromFilename(video.name) }))
       return
@@ -220,7 +250,7 @@ export function UploadVideos() {
     }
 
     setError(null)
-    setStep('details')
+    goForward('upload', 'details')
     unlock('details')
   }
 
@@ -232,7 +262,7 @@ export function UploadVideos() {
     if (hasGroqKey && hasAiKey && !uploadedFilename && video) {
       setError(null)
       setJob({ running: false, complete: false, stageIndex: 0 })
-      setStep('preprocess')
+      goForward('details', 'preprocess')
       unlock('preprocess')
 
       // Upload file first so the preprocess endpoint can access it
@@ -263,13 +293,13 @@ export function UploadVideos() {
     setClips([])
     setPublished(false)
     setJob({ running: true, complete: false, stageIndex: 0 })
-    setStep('preprocess')
+    goForward('details', 'preprocess')
     unlock('preprocess')
   }
 
   function continueFromPreprocess() {
     if (!job.complete) return
-    setStep('review')
+    goForward('preprocess', 'review')
     unlock('review')
   }
 
@@ -279,7 +309,7 @@ export function UploadVideos() {
       return
     }
     setError(null)
-    setStep('publish')
+    goForward('review', 'publish')
     unlock('publish')
   }
 
@@ -292,9 +322,21 @@ export function UploadVideos() {
   return (
     <div className="mx-auto max-w-6xl">
       <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight text-white">
-          Upload & Preprocess
-        </h1>
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-white">
+            Upload & Preprocess
+          </h1>
+          {step !== 'upload' ? (
+            <button
+              type="button"
+              onClick={goBack}
+              className="mt-2 flex w-fit items-center gap-1.5 rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-sm font-medium text-text hover:bg-white/20"
+            >
+              <ArrowLeft className="size-4" />
+              Back
+            </button>
+          ) : null}
+        </div>
         <Stepper current={step} maxReachable={maxReachable} onSelect={goTo} />
       </div>
 
@@ -303,8 +345,11 @@ export function UploadVideos() {
           video={video}
           error={error}
           onFile={handleFile}
+          onRemove={handleRemoveFile}
           preprocessOptions={preprocessOptions}
           onOptionsChange={setPreprocessOptions}
+          hasGroqKey={hasGroqKey}
+          hasAiKey={hasAiKey}
         />
       ) : null}
       {step === 'details' ? (
@@ -402,18 +447,7 @@ export function UploadVideos() {
       ) : null}
 
       {step !== 'publish' ? (
-        <div className="mt-8 flex items-center justify-between">
-          <button
-            type="button"
-            disabled={step === 'upload'}
-            onClick={() => {
-              const i = stepIndex(step)
-              if (i > 0) setStep(STEPS[i - 1].id)
-            }}
-            className="rounded-lg border border-border px-4 py-2 text-sm text-text hover:bg-white/5 disabled:invisible"
-          >
-            Back
-          </button>
+        <div className="mt-8 flex items-center justify-end">
           <button
             type="button"
             disabled={!canContinue}
