@@ -179,3 +179,111 @@ def test_fetch_failure_response_never_contains_api_key():
         response = post_fetch("SUPER_SECRET_KEY")
     assert response.status_code == 200
     assert "SUPER_SECRET_KEY" not in response.text
+
+
+# --- POST /api/fetch/video: pin one specific video, bypassing whitelist/cap ---
+
+
+def post_fetch_video(video: str, api_key: str = "test-key"):
+    return client.post("/api/fetch/video", json={"video": video, "youtube_api_key": api_key})
+
+
+def test_fetch_video_adds_by_raw_id():
+    fake_db = FakeDB()
+    with (
+        patch("app.routers.fetch.get_db", return_value=fake_db),
+        patch("app.routers.fetch.get_videos_metadata", return_value=[make_raw_video("aircAruvnKk")]) as mock_meta,
+    ):
+        response = post_fetch_video("aircAruvnKk")
+    assert response.status_code == 200
+    assert response.json() == {"status": "added", "video_id": "aircAruvnKk"}
+    assert "aircAruvnKk" in fake_db.videos.docs
+    mock_meta.assert_called_once_with("test-key", ["aircAruvnKk"])
+
+
+def test_fetch_video_accepts_watch_url():
+    fake_db = FakeDB()
+    with (
+        patch("app.routers.fetch.get_db", return_value=fake_db),
+        patch("app.routers.fetch.get_videos_metadata", return_value=[make_raw_video("aircAruvnKk")]),
+    ):
+        response = post_fetch_video("https://www.youtube.com/watch?v=aircAruvnKk&t=30s")
+    assert response.status_code == 200
+    assert response.json()["video_id"] == "aircAruvnKk"
+
+
+def test_fetch_video_accepts_short_url():
+    fake_db = FakeDB()
+    with (
+        patch("app.routers.fetch.get_db", return_value=fake_db),
+        patch("app.routers.fetch.get_videos_metadata", return_value=[make_raw_video("aircAruvnKk")]),
+    ):
+        response = post_fetch_video("https://youtu.be/aircAruvnKk")
+    assert response.status_code == 200
+    assert response.json()["video_id"] == "aircAruvnKk"
+
+
+def test_fetch_video_already_present_skips_api_call_entirely():
+    fake_db = FakeDB(videos={"aircAruvnKk": {"_id": "aircAruvnKk"}})
+    with (
+        patch("app.routers.fetch.get_db", return_value=fake_db),
+        patch("app.routers.fetch.get_videos_metadata") as mock_meta,
+    ):
+        response = post_fetch_video("aircAruvnKk")
+    assert response.status_code == 200
+    assert response.json() == {"status": "already_present", "video_id": "aircAruvnKk"}
+    mock_meta.assert_not_called()
+
+
+def test_fetch_video_not_embeddable_returns_404_and_inserts_nothing():
+    fake_db = FakeDB()
+    private_video = make_raw_video("aircAruvnKk")
+    private_video["status"] = {"embeddable": False, "privacyStatus": "public"}
+    with (
+        patch("app.routers.fetch.get_db", return_value=fake_db),
+        patch("app.routers.fetch.get_videos_metadata", return_value=[private_video]),
+    ):
+        response = post_fetch_video("aircAruvnKk")
+    assert response.status_code == 404
+    assert fake_db.videos.docs == {}
+
+
+# --- security ---
+
+
+def test_fetch_video_rejects_malformed_id_before_any_network_call():
+    # A query-injection-shaped or oversized "ID" must be rejected outright, not
+    # merely relied on urlencode to neutralise further down the call chain.
+    fake_db = FakeDB()
+    with (
+        patch("app.routers.fetch.get_db", return_value=fake_db),
+        patch("app.routers.fetch.get_videos_metadata") as mock_meta,
+    ):
+        response = post_fetch_video("abc&maxResults=9999")
+    assert response.status_code == 400
+    mock_meta.assert_not_called()
+
+
+def test_fetch_video_rejects_empty_and_whitespace_input():
+    fake_db = FakeDB()
+    with patch("app.routers.fetch.get_db", return_value=fake_db):
+        response = post_fetch_video("   ")
+    assert response.status_code == 400
+
+
+def test_fetch_video_key_never_appears_in_response_on_rejection():
+    response = post_fetch_video("not valid", api_key="SUPER_SECRET_KEY")
+    assert response.status_code == 400
+    assert "SUPER_SECRET_KEY" not in response.text
+
+
+def test_fetch_video_key_never_appears_in_response_on_upstream_failure():
+    fake_db = FakeDB()
+    http_error = HTTPError("url", 403, "quotaExceeded", hdrs=None, fp=None)  # type: ignore[arg-type]
+    with (
+        patch("app.routers.fetch.get_db", return_value=fake_db),
+        patch("app.routers.fetch.get_videos_metadata", side_effect=http_error),
+    ):
+        response = post_fetch_video("aircAruvnKk", api_key="SUPER_SECRET_KEY")
+    assert response.status_code == 502
+    assert "SUPER_SECRET_KEY" not in response.text
