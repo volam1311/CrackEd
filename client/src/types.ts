@@ -28,6 +28,10 @@ export type Video = {
   category: string
   /** Server filename for uploaded videos, used for playback via /api/uploads/{filePath}. */
   filePath: string | null
+  /** Set together when this video is one clip of a split upload; null otherwise. */
+  seriesId: string | null
+  partNumber: number | null
+  totalParts: number | null
 }
 
 export type WatchProgress = {
