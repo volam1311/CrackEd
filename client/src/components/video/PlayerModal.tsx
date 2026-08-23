@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Video } from '../../types'
+import { fetchSeries } from '../../api'
 import { formatAge, formatViews, summariseDescription } from '../../lib/format'
 import { pointsFor, recordWatch } from '../../lib/progress'
 import { quizFor } from '../../features/quiz/questions'
@@ -9,6 +10,8 @@ import { Icon } from '../ui/Icon'
 type PlayerModalProps = {
   video: Video | null
   onClose: () => void
+  /** Lets Prev/Next swap the modal's video in place, without opening a new one. */
+  onSelectVideo?: (video: Video) => void
 }
 
 /**
@@ -21,14 +24,34 @@ type PlayerModalProps = {
  * playback — a dialog that closes visually while the iframe lives on keeps
  * playing audio over the feed.
  */
-export function PlayerModal({ video, onClose }: PlayerModalProps) {
+export function PlayerModal({ video, onClose, onSelectVideo }: PlayerModalProps) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   // Tracked against a video id so opening a different video resets to the
   // player during render, rather than needing an effect to undo stale state.
   const [view, setView] = useState<{ videoId: string; mode: 'player' | 'quiz' } | null>(null)
+  const [siblings, setSiblings] = useState<Video[]>([])
 
   const quiz = video ? quizFor(video.youtubeId ?? video.id) : null
   const mode = video && view && view.videoId === video.id ? view.mode : 'player'
+
+  // Load the other clips in this series so Prev/Next has something to jump to.
+  useEffect(() => {
+    if (!video?.seriesId) {
+      setSiblings([])
+      return
+    }
+    let cancelled = false
+    fetchSeries(video.seriesId).then((videos) => {
+      if (!cancelled) setSiblings(videos)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [video?.seriesId])
+
+  const siblingIndex = video ? siblings.findIndex((s) => s.id === video.id) : -1
+  const prevPart = siblingIndex > 0 ? siblings[siblingIndex - 1] : null
+  const nextPart = siblingIndex >= 0 && siblingIndex < siblings.length - 1 ? siblings[siblingIndex + 1] : null
 
   // Keep the dialog's open state in sync with `video`.
   useEffect(() => {
@@ -132,6 +155,33 @@ export function PlayerModal({ video, onClose }: PlayerModalProps) {
           </div>
 
           <div className="p-5">
+            {video.partNumber && video.totalParts ? (
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <span className="rounded-full bg-surface px-2.5 py-1 text-xs font-semibold text-muted">
+                  Part {video.partNumber} of {video.totalParts}
+                </span>
+                {onSelectVideo ? (
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={!prevPart}
+                      onClick={() => prevPart && onSelectVideo(prevPart)}
+                      className="rounded-full border border-border px-3 py-1.5 text-xs font-medium text-text transition-colors hover:bg-surface disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      ← Previous part
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!nextPart}
+                      onClick={() => nextPart && onSelectVideo(nextPart)}
+                      className="rounded-full bg-accent px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Next part →
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
             <h2 className="text-lg font-bold text-text">{video.title}</h2>
             <p className="mt-2 flex flex-wrap items-center gap-1.5 text-sm text-muted">
               <span>{video.channel}</span>
