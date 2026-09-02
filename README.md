@@ -37,7 +37,7 @@ flowchart LR
 > You need [Docker](https://www.docker.com/) and Docker Compose installed.
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/volam1311/CrackEd
 cd CrackEd
 docker compose up --build
 ```
